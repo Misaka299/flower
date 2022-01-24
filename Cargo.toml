@@ -1,0 +1,6 @@
+[workspace]
+members=[
+    "flower",
+    "flower_examples",
+    "native/windows"
+]
