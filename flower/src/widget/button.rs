@@ -1,8 +1,11 @@
+use std::cell::RefCell;
 use std::ops::Deref;
-use crate::widget::widget::WidgetState;
+use std::rc::Rc;
+
+use crate::widget::controls::{Controls, ControlState, ControlsType};
 
 pub struct Button {
-    widget_state: WidgetState,
+    control_state: ControlState,
     title: String,
     on_click: Option<Box<dyn Fn()>>,
 }
@@ -10,28 +13,34 @@ pub struct Button {
 impl Button {
     pub fn from(title: String) -> Button {
         Button {
-            widget_state: WidgetState::create(vec![], 0, 0),
+            control_state: ControlState::create(vec![], ControlsType::BUTTON, 0, 0),
             title,
             on_click: None,
         }
     }
-    fn on_click(mut self, fn_on_click: Box<dyn Fn()>) -> Self {
+    pub fn on_click(&mut self, fn_on_click: Box<dyn Fn()>) -> &mut Self {
         self.on_click = Some(fn_on_click);
         self
     }
-    fn set_text(mut self, title: String) -> Self {
+    pub fn set_text(&mut self, title: String) -> &mut Self {
         self.title = title;
         self
     }
-    fn get_text(self) -> String {
-        self.title
+    pub fn get_text(&self) -> String {
+        self.title.clone()
     }
 }
 
 impl Deref for Button {
-    type Target = WidgetState;
+    type Target = ControlState;
 
-    fn deref(&self) -> &WidgetState {
-        &self.widget_state
+    fn deref(&self) -> &ControlState {
+        &self.control_state
+    }
+}
+
+impl Controls for Button {
+    fn get_controls_type(&self) -> ControlsType {
+        ControlsType::BUTTON
     }
 }

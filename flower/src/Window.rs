@@ -6,8 +6,8 @@ use std::rc::Rc;
 use windows::event::Event;
 use windows::window::{NativeWindow, NativeWindowSetting};
 
-use crate::flower::WINDOWS;
-use crate::widget::widget::{STATE_MAP, Widget, WidgetState};
+use crate::widget::controls::{CONTROLS_MAP, Controls, ControlState, ControlsType};
+use crate::WINDOWS;
 
 #[derive(Clone, Debug)]
 pub struct WindowSetting {
@@ -30,7 +30,7 @@ impl Default for WindowSetting {
 
 #[derive(Clone)]
 pub struct Window {
-    widget_state: WidgetState,
+    control_state: ControlState,
     window: Rc<RefCell<NativeWindow>>,
     /// 在 NativeWindow 里的proc是无法检索组件id的，所以这里做一层检索代理
     event_proc: Option<Rc<Box<dyn Fn(i32, Event)>>>,
@@ -39,7 +39,7 @@ pub struct Window {
 impl Window {
     pub fn create(setting: WindowSetting) -> Self {
         let window = Window {
-            widget_state: WidgetState::create(vec![], 0, 0),
+            control_state: ControlState::create(vec![], ControlsType::WINDOW,0, 0),
             window: NativeWindow::create(NativeWindowSetting::build()
                 .window_title(setting.window_title)
                 .height(setting.height)
@@ -49,7 +49,7 @@ impl Window {
             event_proc: None,
         };
         unsafe {
-            STATE_MAP.insert((STATE_MAP.len() + 1).try_into().unwrap(), Box::new(window.clone()));
+            CONTROLS_MAP.insert((CONTROLS_MAP.len() + 1).try_into().unwrap(), Box::leak(Box::new(window.clone())));
         }
         window
     }
@@ -63,24 +63,15 @@ impl Window {
 }
 
 impl Deref for Window {
-    type Target = WidgetState;
-    fn deref(&self) -> &WidgetState {
-        &self.widget_state
+    type Target = ControlState;
+    fn deref(&self) -> &ControlState {
+        &self.control_state
     }
 }
 
-impl Widget for Window {
-    fn find_by_pos(self) -> Vec<Rc<RefCell<dyn Widget<Target=WidgetState>>>> where Self: Sized {
-        let mut res = Vec::<Rc<RefCell<dyn Widget<Target=WidgetState>>>>::new();
-        // for i_child in self.widget_state.child().iter_mut() {
-        //     let mut rc = Clone::clone(i_child).borrow();
-        //     let mut s = &mut rc.find_by_pos().clone();
-        //     res.append(s);
-        // }
-        // if res.is_empty() {
-        //     vec![self.widget_state]
-        // }
-        res
+impl Controls for Window {
+    fn get_controls_type(&self) -> ControlsType {
+        ControlsType::WINDOW
     }
 }
 
@@ -90,7 +81,7 @@ pub fn proxy_event_proc(event: Event) {
         //     println!("{}", s.0);
         // }
 
-        let x = match STATE_MAP.get(&1) {
+        let x = match CONTROLS_MAP.get(&1) {
             None => {
                 println!("state not found");
                 return;

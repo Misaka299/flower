@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -5,8 +6,16 @@ use std::rc::Rc;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
+use crate::widget::button::Button;
+
 // 基本状态存储
-pub static mut STATE_MAP: Lazy<FxHashMap<i32, Box<dyn Deref<Target=WidgetState>>>> = Lazy::new(|| FxHashMap::default());
+pub static mut CONTROLS_MAP: Lazy<FxHashMap<i32, &mut dyn Controls<Target=ControlState>>> = Lazy::new(|| FxHashMap::default());
+
+#[derive(Clone)]
+pub enum ControlsType {
+    WINDOW,
+    BUTTON,
+}
 
 #[derive(Clone)]
 pub enum Position {
@@ -17,13 +26,15 @@ pub enum Position {
 }
 
 #[derive(Clone)]
-pub struct WidgetState {
+pub struct ControlState {
     /// 组件id
     id: i32,
     /// 父级组件id
     parent_id: i32,
     /// 组件类名
     class: Vec<String>,
+    /// 组件类型
+    controls_type: ControlsType,
     /// 位置计算方式
     position: Position,
     /// 父级组件的位置
@@ -42,16 +53,17 @@ pub struct WidgetState {
     /// 层级
     z_index: i32,
     /// 子级组件
-    child: Vec<Rc<RefCell<dyn Widget<Target=WidgetState>>>>,
+    child: Vec<Rc<RefCell<dyn Controls<Target=ControlState>>>>,
 }
 
-impl WidgetState {
-    pub fn create(class: Vec<String>, base_left: i32, base_top: i32) -> WidgetState {
+impl ControlState {
+    pub fn create(class: Vec<String>, controls_type: ControlsType, base_left: i32, base_top: i32) -> ControlState {
         unsafe {
-            WidgetState {
-                id: (STATE_MAP.len() + 1) as i32,
+            ControlState {
+                id: (CONTROLS_MAP.len() + 1) as i32,
                 parent_id: 0,
                 class,
+                controls_type,
                 position: Position::Relative,
                 base_left,
                 base_top,
@@ -123,7 +135,7 @@ impl WidgetState {
     pub fn z_index(&self) -> i32 {
         self.z_index
     }
-    pub fn child(&self) -> &Vec<Rc<RefCell<dyn Widget<Target=WidgetState>>>> {
+    pub fn child(&self) -> &Vec<Rc<RefCell<dyn Controls<Target=ControlState>>>> {
         &self.child
     }
 
@@ -166,49 +178,20 @@ impl WidgetState {
     pub fn set_z_index(&mut self, z_index: i32) {
         self.z_index = z_index;
     }
-    pub fn set_child(&mut self, child: Vec<Rc<RefCell<dyn Widget<Target=WidgetState>>>>) {
+    pub fn set_child(&mut self, child: Vec<Rc<RefCell<dyn Controls<Target=ControlState>>>>) {
         self.child = child;
     }
     //other
-    pub fn set_parent(&mut self, parent: Box<dyn Widget<Target=WidgetState>>) {
+    pub fn set_parent(&mut self, parent: Box<dyn Controls<Target=ControlState>>) {
         self.parent_id = parent.id;
     }
 }
 
-// impl Widget for WidgetState {
-//     /// 寻找下级组件
-//     fn find(self, expr: String) -> Vec<dyn Widget + Deref<Target=WidgetState>>{
-//         todo!()
-//     }
-//
-//     /// 导出主题
-//     fn ui_export(self) -> String {
-//         todo!()
-//     }
-//
-//     /// 导入主题
-//     fn ui_import(self, source: String) {
-//         todo!()
-//     }
-// }
-//
-//
-
-
-pub trait Widget: Deref<Target=WidgetState> {
-    fn find_by_pos(self) -> Vec<Rc<RefCell<dyn Widget<Target=WidgetState>>>>;
+pub trait Controls: Deref<Target=ControlState> {
+    fn get_controls_type(&self) -> ControlsType;
 }
-//
-// impl Widget for Vec<Box<dyn Deref<Target=WidgetState>>> {
-//     fn find(self, expr: String) -> Vec<dyn Widget + Deref<Target=WidgetState>> {
-//         todo!()
-//     }
-//
-//     fn ui_export(self) -> String {
-//         todo!()
-//     }
-//
-//     fn ui_import(self, source: String) {
-//         todo!()
-//     }
-// }
+
+pub fn get<T: Any>(id: i32) -> &'static T {
+    let control = unsafe { CONTROLS_MAP.get(&id).unwrap() } as &dyn Any;
+    control.downcast_ref::<T>().unwrap()
+}
