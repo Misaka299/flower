@@ -6,4 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+log = "0.4"
 flower = { version = "0.1.0-alpha.1", path = "../flower" }
+fast_log="1.4"
+#simple_logger="2.1.0"

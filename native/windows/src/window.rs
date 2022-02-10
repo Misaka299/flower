@@ -1,7 +1,9 @@
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
+use std::thread;
 
+use log::{debug, info, log, warn};
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use winapi::shared::minwindef::{DWORD, LPARAM, LRESULT, UINT, WPARAM};
@@ -21,6 +23,7 @@ pub struct NativeWindowSetting {
     width: i32,
     height: i32,
     scale: f32,
+    native_event_proc: fn(i32, Event),
 }
 
 impl NativeWindowSetting {
@@ -41,6 +44,10 @@ impl NativeWindowSetting {
         self.scale = scale;
         self
     }
+    pub fn native_event_proc(mut self, proc: fn(i32, Event)) -> NativeWindowSetting {
+        self.native_event_proc = proc;
+        self
+    }
 }
 
 impl Default for NativeWindowSetting {
@@ -50,19 +57,22 @@ impl Default for NativeWindowSetting {
             width: 800,
             height: 400,
             scale: 1.0,
+            native_event_proc: |i, e| {},
         }
     }
 }
 
 #[derive(Clone)]
 pub struct NativeWindow {
+    id: i32,
     hwnd: HWND,
     dc: HDC,
     fullscreen: bool,
     width: i32,
     height: i32,
     scale: f32,
-    native_event_proc: Option<Rc<Box<dyn Fn(Event)>>>,
+    window_title: String,
+    native_event_proc: fn(i32, Event),
 }
 
 impl Debug for NativeWindow {
@@ -72,22 +82,19 @@ impl Debug for NativeWindow {
 }
 
 impl NativeWindow {
-    pub fn css(&self) {
-        println!("sss")
-    }
-}
-
-impl NativeWindow {
-    pub fn create(setting: NativeWindowSetting) -> Rc<RefCell<NativeWindow>> {
+    pub fn create(id: i32, setting: NativeWindowSetting) -> Rc<RefCell<NativeWindow>> {
         unsafe {
+            debug!("create NativeWindow Setting: {:?}", setting);
             let rc_ref_window = Rc::new(RefCell::new(NativeWindow {
+                id,
                 hwnd: std::ptr::null_mut(),
                 dc: std::ptr::null_mut(),
                 fullscreen: false,
                 width: setting.width,
                 height: setting.height,
                 scale: setting.scale,
-                native_event_proc: None,
+                window_title: setting.window_title.clone(),
+                native_event_proc: setting.native_event_proc,
             }));
             let mut window = rc_ref_window.borrow_mut();
             let mut wnd_class_w: WNDCLASSW = std::mem::zeroed();
@@ -156,10 +163,33 @@ impl NativeWindow {
         }
     }
 
-    pub fn event_proc(&mut self, proc: Box<dyn Fn(Event)>) {
-        proc(Event::LButtonUp);
-        self.native_event_proc = Some(Rc::new(proc));
-        // unsafe { HWND_WINDOWS_MAP.insert(self.hwnd, self.clone()); }
+
+    pub fn set_id(&mut self, id: i32) {
+        self.id = id;
+    }
+    pub fn set_hwnd(&mut self, hwnd: HWND) {
+        self.hwnd = hwnd;
+    }
+    pub fn set_dc(&mut self, dc: HDC) {
+        self.dc = dc;
+    }
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.fullscreen = fullscreen;
+    }
+    pub fn set_width(&mut self, width: i32) {
+        self.width = width;
+    }
+    pub fn set_height(&mut self, height: i32) {
+        self.height = height;
+    }
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
+    pub fn set_window_title(&mut self, window_title: String) {
+        self.window_title = window_title;
+    }
+    pub fn set_native_event_proc(&mut self, native_event_proc: fn(i32, Event)) {
+        self.native_event_proc = native_event_proc;
     }
 }
 
@@ -171,23 +201,18 @@ unsafe extern "system" fn win32_wndproc(
 ) -> LRESULT {
     let window = match HWND_WINDOWS_MAP.get(&h_wnd) {
         None => {
-            println!("proc get windows is none");
+            warn!("native warn!!! proc get windows is none");
             return DefWindowProcW(h_wnd, u_msg, w_param, l_param);
         }
         Some(win) => { Rc::clone(win) }
     };
+    let win_id;
     let proc = match window.try_borrow_mut() {
         Ok(win) => {
-            match win.native_event_proc.as_ref() {
-                None => {
-                    println!("win {} proc is none.", h_wnd as i32);
-                    return DefWindowProcW(h_wnd, u_msg, w_param, l_param);
-                }
-                Some(proc) => { Rc::clone(proc) }
-            }
+            win_id = win.id;
+            win.native_event_proc
         }
         Err(_) => {
-            println!("borrow fail.");
             return DefWindowProcW(h_wnd, u_msg, w_param, l_param);
         }
     };
@@ -195,12 +220,12 @@ unsafe extern "system" fn win32_wndproc(
         WM_LBUTTONDOWN => {
             let x_pos = GET_X_LPARAM(l_param);
             let y_pos = GET_Y_LPARAM(l_param);
-            proc(Event::LButtonDown(x_pos, y_pos));
-            println!("proc get WM_LBUTTONDOWN call {} event_proc", h_wnd as i32);
+            debug!("native proc get WM_LBUTTONDOWN call {} event_proc", h_wnd as i32);
+            proc(win_id, Event::LButtonDown(x_pos, y_pos));
         }
         // todo()
         WM_DESTROY => {
-            println!("quit {}", u_msg);
+            info!("quit {}", u_msg);
             PostQuitMessage(0);
             return 0;
         }

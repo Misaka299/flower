@@ -1,2 +1,4 @@
 pub mod button;
-pub mod controls;
+pub mod control;
+pub mod label;
+
