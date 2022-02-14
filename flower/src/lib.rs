@@ -6,11 +6,11 @@ use rustc_hash::FxHashMap;
 pub use windows::event;
 use windows::run;
 
-use crate::widget::control::{control, control_MAP, controltate, controlType};
+use crate::control::control::{Control, CONTROL_MAP, ControlState, ControlType};
 use crate::window::Window;
 
 pub mod window;
-pub mod widget;
+pub mod control;
 
 static mut WINDOWS: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
@@ -24,8 +24,8 @@ impl Flower {
         unsafe { WINDOWS.insert(name, window.id()); }
         unsafe {
             let le = Box::leak(Box::new(window));
-            let i = (control_MAP.len() + 1) as i32;
-            control_MAP.insert(i, le);
+            let i = (CONTROL_MAP.len() + 1) as i32;
+            CONTROL_MAP.insert(i, le);
         }
         self
     }
@@ -43,8 +43,8 @@ pub fn get_window(id: String) -> Option<&'static mut Window> {
     }
 }
 
-pub fn get_control_type(id: i32) -> Option<controlType> {
-    match unsafe { control_MAP.get(&id) } {
+pub fn get_control_type(id: i32) -> Option<ControlType> {
+    match unsafe { CONTROL_MAP.get(&id) } {
         Some(control) => {
             Some(control.get_control_type())
         }
@@ -53,7 +53,7 @@ pub fn get_control_type(id: i32) -> Option<controlType> {
 }
 
 pub fn get_control<T: Any>(id: i32) -> Option<&'static mut T> {
-    match unsafe { control_MAP.get_mut(&id) } {
+    match unsafe { CONTROL_MAP.get_mut(&id) } {
         None => { None }
         Some(control) => {
             control.downcast_mut()
@@ -63,7 +63,7 @@ pub fn get_control<T: Any>(id: i32) -> Option<&'static mut T> {
 
 pub fn get_multiple_control_id<T: Any>(ids: Vec<i32>, handle: fn(&mut T)) {
     for id in ids.iter() {
-        if let Some(val) = unsafe { control_MAP.get_mut(&id) } {
+        if let Some(val) = unsafe { CONTROL_MAP.get_mut(&id) } {
             if let Some(control) = val.downcast_mut::<T>() {
                 handle(control);
             }
@@ -72,7 +72,7 @@ pub fn get_multiple_control_id<T: Any>(ids: Vec<i32>, handle: fn(&mut T)) {
 }
 
 pub fn get_multiple_control_class<T: Any>(class: String, handle: fn(i32)) {
-    for val in unsafe { control_MAP.values_mut() } {
+    for val in unsafe { CONTROL_MAP.values_mut() } {
         if val.class().contains(&class) {
             handle(val.id());
         }

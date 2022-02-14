@@ -9,11 +9,11 @@ use windows::event::Event;
 use windows::window::{NativeWindow, NativeWindowSetting};
 
 use crate::get_control;
-use crate::widget::control::{control, control_MAP, controltate, controlType};
+use crate::control::control::{Control, CONTROL_MAP, ControlState, ControlType};
 
 #[derive(Clone)]
 pub struct Window {
-    control_state: controltate,
+    control_state: ControlState,
     window: Rc<RefCell<NativeWindow>>,
     /// 在 NativeWindow 里的proc是无法检索组件id的，所以这里做一层检索代理
     event_proc: Option<fn(i32, Event)>,
@@ -21,7 +21,7 @@ pub struct Window {
 
 impl Window {
     pub fn create(window_title: String) -> Window {
-        let state = controltate::create(vec![], controlType::WINDOW, 0, 0);
+        let state = ControlState::create(vec![], ControlType::WINDOW, 0, 0);
         let window = NativeWindow::create(state.id(), NativeWindowSetting::build()
             .window_title(window_title)
             .scale(1.0)
@@ -62,41 +62,18 @@ impl Window {
 }
 
 impl Deref for Window {
-    type Target = controltate;
-    fn deref(&self) -> &controltate {
+    type Target = ControlState;
+    fn deref(&self) -> &ControlState {
         &self.control_state
     }
 }
 
-impl control for Window {
-    fn get_control_type(&self) -> controlType {
-        controlType::WINDOW
+impl Control for Window {
+    fn get_control_type(&self) -> ControlType {
+        ControlType::WINDOW
     }
 
-    // 层级数字越大，这个控件就越优先级高
-    // 层级相等，id大的控件优先级高
-    fn find_event_control_id(&self, x: i32, y: i32) -> (u8, i32) {
-        let mut self_level = (0, self.id());
-        for id in self.child().iter() {
-            unsafe {
-                if let Some(control) = control_MAP.get_mut(&id) {
-                    let child_level = control.find_event_control_id(x, y);
-                    // 如果子控件的层级更高，那就用子控件
-                    if self_level.0 < child_level.0 {
-                        self_level = child_level;
-                    }
-                    // 如果子控件的层级一样
-                    if self_level.0 == child_level.0 {
-                        // 那就用id数量大的，也就是后来创建的
-                        if self_level.1 < child_level.1 {
-                            self_level = child_level;
-                        }
-                    }
-                };
-            }
-        }
-        self_level
-    }
+
 }
 
 pub fn proxy_event_proc(id: i32, event: Event) {
@@ -109,7 +86,7 @@ pub fn proxy_event_proc(id: i32, event: Event) {
                     }
                     _ => { win.id() }
                 };
-                info!("An event with window ID {} was received, to call event handle function.Response control ID is : {}", id,event_control_id);
+                info!("An event with window ID {} was received, to call event handle function.Response Control ID is : {}", id,event_control_id);
                 proc(event_control_id, event);
             }
             None => {

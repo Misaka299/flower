@@ -1,23 +1,23 @@
 use std::ops::Deref;
-use crate::controlType;
-use crate::widget::control::{control, controltate};
+use crate::ControlType;
+use crate::control::control::{Control, ControlState};
 
 pub struct Label {
-    control_state: controltate,
+    control_state: ControlState,
 }
 
 
 impl Deref for Label {
-    type Target = controltate;
+    type Target = ControlState;
 
     fn deref(&self) -> &Self::Target {
         &self.control_state
     }
 }
 
-impl control for Label {
-    fn get_control_type(&self) -> controlType {
-        controlType::LABEL
+impl Control for Label {
+    fn get_control_type(&self) -> ControlType {
+        ControlType::LABEL
     }
 
     fn find_event_control_id(&self, x: i32, y: i32) -> (u8, i32){

@@ -7,14 +7,14 @@ use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
 // 控件存储。窗口也视作一个控件
-pub static mut control_MAP: Lazy<FxHashMap<i32, &mut dyn control<Target=controltate>>> = Lazy::new(|| FxHashMap::default());
+pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, &mut dyn Control<Target=ControlState>>> = Lazy::new(|| FxHashMap::default());
 // why set zero can not find window
 // Why does setting zero make Windows invisible
 static mut ID_TAG: AtomicI32 = AtomicI32::new(1);
 
 
 #[derive(Clone)]
-pub enum controlType {
+pub enum ControlType {
     WINDOW,
     LABEL,
     BUTTON,
@@ -31,7 +31,7 @@ pub enum Position {
 }
 
 #[derive(Clone)]
-pub struct controltate {
+pub struct ControlState {
     /// 组件id
     id: i32,
     /// 父级组件id
@@ -39,7 +39,7 @@ pub struct controltate {
     /// 组件类名
     class: Vec<String>,
     /// 组件类型
-    control_type: controlType,
+    control_type: ControlType,
     /// 位置计算方式
     position: Position,
     /// 父级组件的位置
@@ -61,11 +61,11 @@ pub struct controltate {
     child: Vec<i32>,
 }
 
-impl controltate {
-    pub fn create(class: Vec<String>, control_type: controlType, base_left: i32, base_top: i32) -> controltate {
+impl ControlState {
+    pub fn create(class: Vec<String>, control_type: ControlType, base_left: i32, base_top: i32) -> ControlState {
         let id = unsafe { ID_TAG.fetch_add(1, Ordering::Release) };
-        debug!("controltate Register id: {}",id);
-        controltate {
+        debug!("ControlState Register id: {}",id);
+        ControlState {
             id,
             parent_id: 0,
             class,
@@ -111,7 +111,7 @@ impl controltate {
     pub fn class(&self) -> &Vec<String> {
         &self.class
     }
-    pub fn control_type(&self) -> &controlType {
+    pub fn control_type(&self) -> &ControlType {
         &self.control_type
     }
     pub fn position(&self) -> &Position {
@@ -157,7 +157,7 @@ impl controltate {
     pub fn set_class(&mut self, class: Vec<String>) {
         self.class = class;
     }
-    pub fn set_control_type(&mut self, control_type: controlType) {
+    pub fn set_control_type(&mut self, control_type: ControlType) {
         self.control_type = control_type;
     }
     pub fn set_position(&mut self, position: Position) {
@@ -195,16 +195,43 @@ impl controltate {
     }
 }
 
-pub trait control: Any + Deref<Target=controltate> {
-    fn get_control_type(&self) -> controlType;
+pub trait Control: Any + Deref<Target=ControlState> {
+    fn get_control_type(&self) -> ControlType;
     /// x,y 窗口发生事件时，鼠标在窗口内的相对坐标
     /// 层级数字越大，这个控件就越优先级高
     /// 层级相等，id大的控件优先级高
-    /// (u8, i32) 层级,组件id
-    fn find_event_control_id(&self, x: i32, y: i32) -> (u8, i32);
+    /// (i32, u8, i32) 层级,组件id
+    // 层级数字越大，这个控件就越优先级高
+    // 层级相等，id大的控件优先级高
+    fn find_event_control_id(&self, x: i32, y: i32) -> (i32, u8, i32) {
+        let mut self_level = (self.z_index(), 0, self.id());
+        for id in self.child().iter() {
+            unsafe {
+                if let Some(control) = CONTROL_MAP.get_mut(&id) {
+                    let child_level = control.find_event_control_id(x, y);
+                    // z-index 优先级最高
+                    if self_level.0 < child_level.0 {
+                        self_level = child_level;
+                    }
+                    // 如果子控件的层级更高，那就用子控件
+                    if self_level.1 < child_level.1 {
+                        self_level = child_level;
+                    }
+                    // 如果子控件的层级一样
+                    if self_level.1 == child_level.1 {
+                        // 那就用id数量大的，也就是后来创建的
+                        if self_level.2 < child_level.2 {
+                            self_level = child_level;
+                        }
+                    }
+                };
+            }
+        }
+        self_level
+    }
 }
 
-impl dyn control {
+impl dyn Control {
     /// Returns `true` if the boxed type is the same as `T`.
     ///
     /// # Examples
@@ -260,7 +287,7 @@ impl dyn control {
             // SAFETY: just checked whether we are pointing to the correct type, and we can rely on
             // that check for memory safety because we have implemented Any for all types; no other
             // impls can exist as they would conflict with our impl.
-            unsafe { Some(&*(self as *const (dyn control<Target=controltate>) as *const T)) }
+            unsafe { Some(&*(self as *const (dyn Control<Target=ControlState>) as *const T)) }
         } else {
             None
         }
@@ -295,7 +322,7 @@ impl dyn control {
             // SAFETY: just checked whether we are pointing to the correct type, and we can rely on
             // that check for memory safety because we have implemented Any for all types; no other
             // impls can exist as they would conflict with our impl.
-            unsafe { Some(&mut *(self as *mut (dyn control<Target=controltate>) as *mut T)) }
+            unsafe { Some(&mut *(self as *mut (dyn Control<Target=ControlState>) as *mut T)) }
         } else {
             None
         }
@@ -303,6 +330,6 @@ impl dyn control {
 }
 
 pub fn get<T: Any>(id: i32) -> &'static T {
-    let control = unsafe { control_MAP.get_mut(&id).unwrap() };
+    let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
     control.downcast_ref().unwrap()
 }

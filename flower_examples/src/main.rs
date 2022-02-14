@@ -1,8 +1,8 @@
 use log::info;
 use flower::event::Event;
 use flower::Flower;
-use flower::widget::button::Button;
-use flower::widget::control;
+use flower::control::button::Button;
+use flower::control::control;
 use flower::window::{Window};
 
 fn main() {

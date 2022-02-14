@@ -1,9 +1,9 @@
 use std::ops::Deref;
 
-use crate::widget::control::{control, controltate, controlType};
+use crate::control::control::{Control, ControlState, ControlType};
 
 pub struct Button {
-    control_state: controltate,
+    control_state: ControlState,
     title: String,
     on_click: Option<Box<dyn Fn()>>,
 }
@@ -11,7 +11,7 @@ pub struct Button {
 impl Button {
     pub fn from(title: String) -> Button {
         Button {
-            control_state: controltate::create(vec![], controlType::BUTTON, 0, 0),
+            control_state: ControlState::create(vec![], ControlType::BUTTON, 0, 0),
             title,
             on_click: None,
         }
@@ -30,16 +30,16 @@ impl Button {
 }
 
 impl Deref for Button {
-    type Target = controltate;
+    type Target = ControlState;
 
     fn deref(&self) -> &Self::Target {
         &self.control_state
     }
 }
 
-impl control for Button {
-    fn get_control_type(&self) -> controlType {
-        controlType::BUTTON
+impl Control for Button {
+    fn get_control_type(&self) -> ControlType {
+        ControlType::BUTTON
     }
 
     fn find_event_control_id(&self, x: i32, y: i32) -> (u8, i32){
