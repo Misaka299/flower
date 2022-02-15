@@ -1,8 +1,9 @@
 use log::info;
 use flower::event::Event;
 use flower::Flower;
-use flower::control::button::Button;
+// use flower::control::button::Button;
 use flower::control::control;
+use flower::control::label::Label;
 use flower::window::{Window};
 
 fn main() {
@@ -27,18 +28,18 @@ fn event_one(id: i32, event: Event) {
             // 取窗口
             flower::get_window("ss".to_string());
             // 取控件
-            flower::get_control::<Button>(1);
+            // flower::get_control::<Button>(1);
             // 操作多个控件，不存在的id不会被操作
-            flower::get_multiple_control_id::<Button>(vec![1, 2, 3], |btn| {
-                btn.set_text("给爷换个名字".to_string());
-            });
-            // 操作多个控件，寻找指定类的控件进行操作
-            flower::get_multiple_control_class::<Button>("menu".to_string(), |id| {
-                // 取控件
-                if let Some(btn) = flower::get_control::<Button>(id) {
-                    btn.set_text("给爷换个名字".to_string());
-                }
-            });
+            // flower::get_multiple_control_id::<Button>(vec![1, 2, 3], |btn| {
+            //     btn.set_text("给爷换个名字".to_string());
+            // });
+            // // 操作多个控件，寻找指定类的控件进行操作
+            // flower::get_multiple_control_class::<Button>("menu".to_string(), |id| {
+            //     // 取控件
+            //     if let Some(btn) = flower::get_control::<Button>(id) {
+            //         btn.set_text("给爷换个名字".to_string());
+            //     }
+            // });
             // info!("proc move event from {} hhhh", id)
         }
     }

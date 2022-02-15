@@ -223,6 +223,9 @@ unsafe extern "system" fn win32_wndproc(
             debug!("native proc get WM_LBUTTONDOWN call {} event_proc", h_wnd as i32);
             proc(win_id, Event::LButtonDown(x_pos, y_pos));
         }
+        WM_PAINT => {
+            proc(win_id, Event::OnPrint);
+        }
         // todo()
         WM_DESTROY => {
             info!("quit {}", u_msg);

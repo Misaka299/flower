@@ -3,12 +3,13 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
+use nonaquad::nvgimpl;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
 // 控件存储。窗口也视作一个控件
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, &mut dyn Control<Target=ControlState>>> = Lazy::new(|| FxHashMap::default());
-// why set zero can not find window
+
 // Why does setting zero make Windows invisible
 static mut ID_TAG: AtomicI32 = AtomicI32::new(1);
 
@@ -229,6 +230,8 @@ pub trait Control: Any + Deref<Target=ControlState> {
         }
         self_level
     }
+
+    fn on_draw(&self);
 }
 
 impl dyn Control {

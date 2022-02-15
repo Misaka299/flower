@@ -1,9 +1,23 @@
 use std::ops::Deref;
-use crate::ControlType;
+use miniquad::graphics;
+use nona::{Align, Canvas, Color, Context, Gradient, Point};
+
+use nonaquad::nvgimpl;
+
 use crate::control::control::{Control, ControlState};
+use crate::ControlType;
 
 pub struct Label {
     control_state: ControlState,
+}
+
+impl Label {
+    pub fn create() -> Label {
+        let state = ControlState::create(vec![], ControlType::LABEL, 0, 0);
+        Label{
+            control_state: state
+        }
+    }
 }
 
 
@@ -20,7 +34,7 @@ impl Control for Label {
         ControlType::LABEL
     }
 
-    fn find_event_control_id(&self, x: i32, y: i32) -> (u8, i32){
-        (1,self.id())
+    fn on_draw(&self) {
+
     }
 }

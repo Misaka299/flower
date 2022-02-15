@@ -1,4 +1,6 @@
 pub enum Event {
+    /// 重画
+    OnPrint,
     /// 窗口移动
     WindowMove,
     /// 窗口大小被改变
