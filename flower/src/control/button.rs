@@ -1,9 +1,9 @@
 // use std::ops::Deref;
 //
-// use crate::control::control::{Control, ControlState, ControlType};
+// use crate::control::control::{Control, control_state, ControlType};
 //
 // pub struct Button {
-//     control_state: ControlState,
+//     control_state: control_state,
 //     title: String,
 //     on_click: Option<Box<dyn Fn()>>,
 // }
@@ -11,7 +11,7 @@
 // impl Button {
 //     pub fn from(title: String) -> Button {
 //         Button {
-//             control_state: ControlState::create(vec![], ControlType::BUTTON, 0, 0),
+//             control_state: control_state::create(vec![], ControlType::BUTTON, 0, 0),
 //             title,
 //             on_click: None,
 //         }
@@ -30,7 +30,7 @@
 // }
 //
 // impl Deref for Button {
-//     type Target = ControlState;
+//     type Target = control_state;
 //
 //     fn deref(&self) -> &Self::Target {
 //         &self.control_state

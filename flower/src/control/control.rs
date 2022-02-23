@@ -3,7 +3,6 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
-use nonaquad::nvgimpl;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
@@ -16,11 +15,12 @@ static mut ID_TAG: AtomicI32 = AtomicI32::new(1);
 
 #[derive(Clone)]
 pub enum ControlType {
-    WINDOW,
-    LABEL,
-    BUTTON,
+    Window,
+    Label,
+    Button,
     // TEXT_BOX,
     // COMBO_BOX,
+    List,
 }
 
 #[derive(Clone)]
@@ -41,17 +41,10 @@ pub struct ControlState {
     class: Vec<String>,
     /// 组件类型
     control_type: ControlType,
-    /// 位置计算方式
-    position: Position,
     /// 父级组件的位置
     base_left: i32,
     base_top: i32,
-    /// 本组件的位置
-    left: i32,
-    top: i32,
-    /// 组件宽高
-    width: i32,
-    height: i32,
+    rect: Rect,
     /// 是否禁用
     disable: bool,
     /// 是否可视
@@ -65,44 +58,28 @@ pub struct ControlState {
 impl ControlState {
     pub fn create(class: Vec<String>, control_type: ControlType, base_left: i32, base_top: i32) -> ControlState {
         let id = unsafe { ID_TAG.fetch_add(1, Ordering::Release) };
-        debug!("ControlState Register id: {}",id);
+        debug!("control_state Register id: {}",id);
         ControlState {
             id,
             parent_id: 0,
             class,
             control_type,
-            position: Position::Relative,
+
             base_left,
             base_top,
-            left: 0,
-            top: 0,
-            width: 200,
-            height: 20,
+            rect: Rect {
+                position: Position::Relative,
+                left: 0,
+                top: 0,
+                width: 200,
+                height: 20,
+            },
             disable: false,
             visual: true,
             z_index: 0,
             child: vec![],
         }
     }
-    pub fn set_left_top(mut self, left: i32, top: i32) -> Self {
-        self.left = left;
-        self.top = top;
-        self
-    }
-    pub fn set_width_height(mut self, width: i32, height: i32) -> Self {
-        self.width = width;
-        self.height = height;
-        self
-    }
-    pub fn set_rect(mut self, left: i32, top: i32, width: i32, height: i32) -> Self {
-        self.left = left;
-        self.top = top;
-        self.width = width;
-        self.height = height;
-        self
-    }
-
-
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -115,26 +92,14 @@ impl ControlState {
     pub fn control_type(&self) -> &ControlType {
         &self.control_type
     }
-    pub fn position(&self) -> &Position {
-        &self.position
-    }
     pub fn base_left(&self) -> i32 {
         self.base_left
     }
     pub fn base_top(&self) -> i32 {
         self.base_top
     }
-    pub fn left(&self) -> i32 {
-        self.left
-    }
-    pub fn top(&self) -> i32 {
-        self.top
-    }
-    pub fn width(&self) -> i32 {
-        self.width
-    }
-    pub fn height(&self) -> i32 {
-        self.height
+    pub fn rect(&self) -> &Rect {
+        &self.rect
     }
     pub fn disable(&self) -> bool {
         self.disable
@@ -148,7 +113,6 @@ impl ControlState {
     pub fn child(&self) -> &Vec<i32> {
         &self.child
     }
-
     pub fn set_id(&mut self, id: i32) {
         self.id = id;
     }
@@ -161,26 +125,14 @@ impl ControlState {
     pub fn set_control_type(&mut self, control_type: ControlType) {
         self.control_type = control_type;
     }
-    pub fn set_position(&mut self, position: Position) {
-        self.position = position;
-    }
     pub fn set_base_left(&mut self, base_left: i32) {
         self.base_left = base_left;
     }
     pub fn set_base_top(&mut self, base_top: i32) {
         self.base_top = base_top;
     }
-    pub fn set_left(&mut self, left: i32) {
-        self.left = left;
-    }
-    pub fn set_top(&mut self, top: i32) {
-        self.top = top;
-    }
-    pub fn set_width(&mut self, width: i32) {
-        self.width = width;
-    }
-    pub fn set_height(&mut self, height: i32) {
-        self.height = height;
+    pub fn set_rect(&mut self, rect: Rect) {
+        self.rect = rect;
     }
     pub fn set_disable(&mut self, disable: bool) {
         self.disable = disable;
@@ -196,12 +148,20 @@ impl ControlState {
     }
 }
 
+impl Deref for ControlState {
+    type Target = Rect;
+
+    fn deref(&self) -> &Self::Target {
+        &self.rect
+    }
+}
+
 pub trait Control: Any + Deref<Target=ControlState> {
     fn get_control_type(&self) -> ControlType;
     /// x,y 窗口发生事件时，鼠标在窗口内的相对坐标
     /// 层级数字越大，这个控件就越优先级高
     /// 层级相等，id大的控件优先级高
-    /// (i32, u8, i32) 层级,组件id
+    /// (i32, u8, i32) z-index,层级,组件id
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
     fn find_event_control_id(&self, x: i32, y: i32) -> (i32, u8, i32) {
@@ -329,6 +289,51 @@ impl dyn Control {
         } else {
             None
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Rect {
+    /// 位置计算方式
+    position: Position,
+    /// 本组件的位置
+    left: i32,
+    top: i32,
+    /// 组件宽高
+    width: i32,
+    height: i32,
+}
+
+impl Rect {
+    pub fn position(&self) -> &Position {
+        &self.position
+    }
+    pub fn left(&self) -> i32 {
+        self.left
+    }
+    pub fn top(&self) -> i32 {
+        self.top
+    }
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+    pub fn height(&self) -> i32 {
+        self.height
+    }
+    pub fn set_position(&mut self, position: Position) {
+        self.position = position;
+    }
+    pub fn set_left(&mut self, left: i32) {
+        self.left = left;
+    }
+    pub fn set_top(&mut self, top: i32) {
+        self.top = top;
+    }
+    pub fn set_width(&mut self, width: i32) {
+        self.width = width;
+    }
+    pub fn set_height(&mut self, height: i32) {
+        self.height = height;
     }
 }
 
