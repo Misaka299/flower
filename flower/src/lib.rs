@@ -1,101 +1,78 @@
 use std::any::Any;
-use std::borrow::BorrowMut;
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-use gleam::gl;
+use std::borrow::Borrow;
+use std::ops::Deref;
 
-use glutin::{ContextBuilder, WindowedContext};
-use glutin::event::VirtualKeyCode::L;
+use glow::{Context, HasContext};
+use glutin::{ContextCurrentState, ContextWrapper, PossiblyCurrent};
 use glutin::event::WindowEvent;
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::{Theme, WindowBuilder, WindowId};
+use glutin::event_loop::EventLoop;
+use glutin::window::WindowId;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
-use crate::ContextWrapper::Windowed;
-use crate::control::control::{Control, CONTROL_MAP, ControlState, ControlType};
-use crate::support::{ContextCurrentWrapper, ContextId, ContextTracker, ContextWrapper, Gl};
+use crate::control::control::{Control, ControlState, ControlType};
 
 pub mod window;
 pub mod control;
 pub mod event;
-pub mod support;
 pub mod graphics;
 
 
 static mut WINDOW_MAP: Lazy<FxHashMap<WindowId, Window>> = Lazy::new(|| FxHashMap::default());
-static mut NAME_MAP: Lazy<FxHashMap<String, WindowId>> = Lazy::new(|| FxHashMap::default());
+static mut NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
-static mut WINDOWS: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
 pub struct Window {
     control_state: ControlState,
-    window_id: Option<WindowId>,
-    context_id: Option<ContextId>,
-    gl: Option<Gl>,
+    gl: Context,
+    shader_version: String,
+    window: Box<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
 }
 
-impl Deref for Window {
-    type Target = ControlState;
-
-    fn deref(&self) -> &Self::Target {
-        &self.control_state
-    }
-}
-
+//
+// impl Deref for Window {
+//     type Target = ControlState;
+//
+//     fn deref(&self) -> &Self::Target {
+//         &self.control_state
+//     }
+// }
+//
 impl Window {
-    pub fn create() -> Self {
-        let state = ControlState::create(vec![], ControlType::Label, 0, 0);
-        Window {
-            control_state: state,
-            window_id: None,
-            context_id: None,
-            gl: None,
-        }
-    }
+    // pub fn create(self) -> Self {
+    //     let state = ControlState::create(vec![], ControlType::Label, 0, 0);
+    //     Window {
+    //         control_state: state,
+    //         gl,
+    //         shader_version,
+    //         window,
+    //     }
+    // }
 }
 
-impl Control for Window {
-    fn get_control_type(&self) -> ControlType {
-        todo!()
-    }
-
-    fn on_draw(&self) {
-        todo!()
-    }
-}
+// impl Control for Window {
+//     fn get_control_type(&self) -> ControlType {
+//         todo!()
+//     }
+//
+//     fn on_draw(&self) {}
+// }
 
 pub struct Flower {
     el: EventLoop<()>,
-    ct: ContextTracker,
 }
 
 impl Flower {
     pub fn new() -> Self {
-        Flower { el: EventLoop::new(), ct: Default::default() }
+        Flower { el: EventLoop::new() }
     }
-    pub fn window(mut self, name: String, mut window: Window) -> Self {
-        let wb = WindowBuilder::new().with_title("title");
-        let windowed_context = unsafe { ContextBuilder::new().build_windowed(wb, &self.el).unwrap() };
-        let windowed_context = unsafe { windowed_context.make_current().unwrap() };
-        let gl = support::load(&windowed_context.context());
-        let window_id = windowed_context.window().id();
-
-        let context_id = unsafe {
-            self.ct.insert(ContextCurrentWrapper::PossiblyCurrent(
-                ContextWrapper::Windowed(windowed_context),
-            ))
-        };
-        window.window_id = Some(window_id);
-        window.gl = Some(gl);
-        window.context_id = Some(context_id);
-
-        unsafe {
-            NAME_MAP.insert(name, window.window_id.unwrap().clone());
-            WINDOW_MAP.insert(window.window_id.unwrap().clone(), window);
-        }
-        self
-    }
+    // pub fn window(mut self, name: String, mut window: Window<T>) -> Self {
+    //     unsafe {
+    //         NAME_MAP.insert(name, window.id());
+    //         WINDOW_MAP.insert(window.window_id.unwrap().clone(), window);
+    //     }
+    //     self
+    // }
     pub fn open(mut self) {
         unsafe {
             self.el.run(move |event, _, control_flow| {
@@ -104,40 +81,73 @@ impl Flower {
                     glutin::event::Event::LoopDestroyed => return,
                     glutin::event::Event::WindowEvent { event, window_id } => match event {
                         WindowEvent::Resized(physical_size) => {
-                            let windowed_context = self.ct.get_current(WINDOW_MAP[&window_id].context_id.unwrap()).unwrap();
-                            let windowed_context = windowed_context.windowed();
-                            windowed_context.resize(physical_size);
+                            // let windowed_context = self.ct.get_current(WINDOW_MAP[&window_id].context_id.unwrap()).unwrap();
+                            // let windowed_context = windowed_context.windowed();
+                            // windowed_context.resize(physical_size);
                         }
                         WindowEvent::CloseRequested => {
-                            if let Some(window) = WINDOW_MAP.remove(&window_id) {
-                                self.ct.remove(window.context_id.unwrap());
-                                println!("Window with ID {:?} has been closed", window_id);
-                            }
+                            // if let Some(window) = WINDOW_MAP.remove(&window_id) {
+                            //     self.ct.remove(window.context_id.unwrap());
+                            //     println!("Window with ID {:?} has been closed", window_id);
+                            // }
                         }
                         _ => (),
                     },
                     glutin::event::Event::RedrawRequested(window_id) => {
-                        let window = &WINDOW_MAP[&window_id];
-
-                        let mut color = [1.0, 0.5, 0.7, 1.0];
-                        color.swap(0, 1);
-                        println!("{:?}", color);
-
-                        let windowed_context = self.ct.get_current(window.context_id.unwrap()).unwrap();
-
-                        window.gl.as_ref().unwrap().draw_frame(color);
-                        windowed_context.windowed().swap_buffers().unwrap();
+                        // let window = &WINDOW_MAP[&window_id];
+                        //
+                        // let mut color = [1.0, 0.5, 0.7, 1.0];
+                        // color.swap(0, 1);
+                        // println!("{:?}", color);
+                        //
+                        // let windowed_context = self.ct.get_current(window.context_id.unwrap()).unwrap();
+                        //
+                        // for id in window.child().iter() {
+                        //     &CONTROL_MAP[id].on_draw(window.gl.as_ref().unwrap());
+                        // }
+                        // window.gl.as_ref().unwrap().draw_frame(color);
+                        // windowed_context.windowed().swap_buffers().unwrap();
                     }
                     _ => (),
                 }
 
-                if WINDOW_MAP.is_empty() {
-                    *control_flow = ControlFlow::Exit
-                } else {
-                    *control_flow = ControlFlow::Wait
-                }
+                // if WINDOW_MAP.is_empty() {
+                //     *control_flow = ControlFlow::Exit
+                // } else {
+                //     *control_flow = ControlFlow::Wait
+                // }
             });
         }
+    }
+    pub fn create_window(self) -> Self {
+        let state = ControlState::create(vec![], ControlType::Label, 0, 0);
+        let window_builder = glutin::window::WindowBuilder::new()
+            .with_title("Hello triangle!")
+            .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
+        unsafe {
+            let window = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .build_windowed(window_builder, &self.el)
+                .unwrap()
+                .make_current()
+                .unwrap();
+            let gl =
+                glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            let shader_version =
+                {
+                    // let data = CStr::from_ptr(gl.get_parameter_string(glow::VERSION) as *const _).to_bytes().to_vec();
+                    // String::from_utf8(data).unwrap()
+                    gl.get_parameter_string(glow::VERSION)
+                };
+            println!("{}", shader_version);
+            Window {
+                control_state: state,
+                gl,
+                shader_version,
+                window: Box::new(window),
+            };
+        }
+        self
     }
 }
 //

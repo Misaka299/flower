@@ -6,6 +6,7 @@ use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
+
 // 控件存储。窗口也视作一个控件
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, &mut dyn Control<Target=ControlState>>> = Lazy::new(|| FxHashMap::default());
 
@@ -64,7 +65,6 @@ impl ControlState {
             parent_id: 0,
             class,
             control_type,
-
             base_left,
             base_top,
             rect: Rect {
@@ -80,6 +80,7 @@ impl ControlState {
             child: vec![],
         }
     }
+
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -112,39 +113,6 @@ impl ControlState {
     }
     pub fn child(&self) -> &Vec<i32> {
         &self.child
-    }
-    pub fn set_id(&mut self, id: i32) {
-        self.id = id;
-    }
-    pub fn set_parent_id(&mut self, parent_id: i32) {
-        self.parent_id = parent_id;
-    }
-    pub fn set_class(&mut self, class: Vec<String>) {
-        self.class = class;
-    }
-    pub fn set_control_type(&mut self, control_type: ControlType) {
-        self.control_type = control_type;
-    }
-    pub fn set_base_left(&mut self, base_left: i32) {
-        self.base_left = base_left;
-    }
-    pub fn set_base_top(&mut self, base_top: i32) {
-        self.base_top = base_top;
-    }
-    pub fn set_rect(&mut self, rect: Rect) {
-        self.rect = rect;
-    }
-    pub fn set_disable(&mut self, disable: bool) {
-        self.disable = disable;
-    }
-    pub fn set_visual(&mut self, visual: bool) {
-        self.visual = visual;
-    }
-    pub fn set_z_index(&mut self, z_index: i32) {
-        self.z_index = z_index;
-    }
-    pub fn set_child(&mut self, child: Vec<i32>) {
-        self.child = child;
     }
 }
 

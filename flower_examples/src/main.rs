@@ -4,7 +4,7 @@ use flower::{Flower, Window};
 // use flower::control::button::Button;
 
 fn main() {
-    fast_log::init_log("requests.log", log::Level::Debug, None, true);
+    // fast_log::init_log("requests.log", log::Level::Debug, None, true);
 
     // let btn: Button = Button::build().parent(&win_one).create();
 
@@ -13,7 +13,8 @@ fn main() {
     // btn.set_parent(win_one);
 
     Flower::new()
-        .window("main".to_string(),Window::create())
+        // .window("main".to_string(),Window::create())
+        .create_window()
         .open();
 }
 //

@@ -3,6 +3,7 @@ name = "flower"
 version = "0.1.0-alpha.1"
 edition = "2021"
 authors = ["Misaka 15535"]
+build = "build.rs"
 license = "GLWTPL"
 description = """
 Try making a cross-platform GUI library.
@@ -18,7 +19,7 @@ once_cell = "1.9.0"
 rustc-hash = { version = "1.0" }
 log = "0.4"
 glutin = "0.28.0"
-
+glow = "0.11.2"
 #[target.'cfg(windows)'.dependencies]
 #windows = { path = "../native/windows", version = "=0.1.0" }
 takeable-option = "0.4"
