@@ -5,7 +5,7 @@ use std::ops::Deref;
 use glow::{Context, HasContext};
 use glutin::{ContextCurrentState, ContextWrapper, PossiblyCurrent};
 use glutin::event::WindowEvent;
-use glutin::event_loop::EventLoop;
+use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
@@ -16,9 +16,10 @@ pub mod window;
 pub mod control;
 pub mod event;
 pub mod graphics;
+mod util;
 
 
-static mut WINDOW_MAP: Lazy<FxHashMap<WindowId, Window>> = Lazy::new(|| FxHashMap::default());
+static mut WINDOW_MAP: Lazy<FxHashMap<WindowId, &mut Window>> = Lazy::new(|| FxHashMap::default());
 static mut NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
 
@@ -60,11 +61,12 @@ impl Window {
 
 pub struct Flower {
     el: EventLoop<()>,
+    windows: FxHashMap<WindowId, Window>,
 }
 
 impl Flower {
     pub fn new() -> Self {
-        Flower { el: EventLoop::new() }
+        Flower { el: EventLoop::new(), windows: FxHashMap::default() }
     }
     // pub fn window(mut self, name: String, mut window: Window<T>) -> Self {
     //     unsafe {
@@ -86,9 +88,10 @@ impl Flower {
                             // windowed_context.resize(physical_size);
                         }
                         WindowEvent::CloseRequested => {
+                            self.windows.remove(&window_id);
                             // if let Some(window) = WINDOW_MAP.remove(&window_id) {
-                            //     self.ct.remove(window.context_id.unwrap());
-                            //     println!("Window with ID {:?} has been closed", window_id);
+
+                            println!("Window with ID {:?} has been closed", window_id);
                             // }
                         }
                         _ => (),
@@ -111,15 +114,15 @@ impl Flower {
                     _ => (),
                 }
 
-                // if WINDOW_MAP.is_empty() {
-                //     *control_flow = ControlFlow::Exit
-                // } else {
-                //     *control_flow = ControlFlow::Wait
-                // }
+                if self.windows.is_empty() {
+                    *control_flow = ControlFlow::Exit
+                } else {
+                    *control_flow = ControlFlow::Wait
+                }
             });
         }
     }
-    pub fn create_window(self) -> Self {
+    pub fn create_window(mut self) -> Self {
         let state = ControlState::create(vec![], ControlType::Label, 0, 0);
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title("Hello triangle!")
@@ -133,21 +136,27 @@ impl Flower {
                 .unwrap();
             let gl =
                 glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
-            let shader_version =
-                {
-                    // let data = CStr::from_ptr(gl.get_parameter_string(glow::VERSION) as *const _).to_bytes().to_vec();
-                    // String::from_utf8(data).unwrap()
-                    gl.get_parameter_string(glow::VERSION)
-                };
-            println!("{}", shader_version);
-            Window {
+            let shader_version = util::find_version(gl.get_parameter_string(glow::VERSION));
+
+            //can i use this version?
+            println!("{:?}", &shader_version);
+
+
+            let id = window.window().id();
+            let mut win = Window {
                 control_state: state,
                 gl,
                 shader_version,
                 window: Box::new(window),
             };
+            self.windows.insert(id, win);
         }
         self
+    }
+
+    pub fn get_window(mut self)-> Option<&mut Window>{
+
+        Sone(self.windows.get_mut(s))
     }
 }
 //

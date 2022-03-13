@@ -1,7 +1,15 @@
+use std::borrow::{Borrow, BorrowMut};
+use std::ops::{Deref, DerefMut};
+
 use log::info;
-use flower::event::Event;
+use once_cell::sync::OnceCell;
+use once_cell::unsync::Lazy;
+
 use flower::{Flower, Window};
+use flower::event::Event;
+
 // use flower::control::button::Button;
+
 
 fn main() {
     // fast_log::init_log("requests.log", log::Level::Debug, None, true);
@@ -11,12 +19,12 @@ fn main() {
     // 待决定
     // win_one.addChild(btn);
     // btn.set_parent(win_one);
-
     Flower::new()
         // .window("main".to_string(),Window::create())
         .create_window()
-        .open();
+        .create_window().open();
 }
+
 //
 // fn event_one(id: i32, event: Event) {
 //     match event {
