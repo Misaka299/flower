@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::borrow::Borrow;
+use std::fmt::Error;
 use std::ops::Deref;
 
 use glow::{Context, HasContext};
@@ -9,6 +10,7 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
+use takeable_option::Takeable;
 
 use crate::control::control::{Control, ControlState, ControlType};
 
@@ -19,10 +21,13 @@ pub mod graphics;
 mod util;
 
 
-static mut WINDOW_MAP: Lazy<FxHashMap<WindowId, &mut Window>> = Lazy::new(|| FxHashMap::default());
 static mut NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
+pub enum ControlWrapper<T> {
+    Control(T)
+}
 
+// #[derive(Copy)]
 pub struct Window {
     control_state: ControlState,
     gl: Context,
@@ -30,15 +35,15 @@ pub struct Window {
     window: Box<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
 }
 
-//
-// impl Deref for Window {
-//     type Target = ControlState;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.control_state
-//     }
-// }
-//
+
+impl Deref for Window {
+    type Target = ControlState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.control_state
+    }
+}
+
 impl Window {
     // pub fn create(self) -> Self {
     //     let state = ControlState::create(vec![], ControlType::Label, 0, 0);
@@ -51,22 +56,23 @@ impl Window {
     // }
 }
 
-// impl Control for Window {
-//     fn get_control_type(&self) -> ControlType {
-//         todo!()
-//     }
-//
-//     fn on_draw(&self) {}
-// }
+impl Control for Window {
+    fn get_control_type(&self) -> ControlType {
+        todo!()
+    }
+
+    fn on_draw(&self) {}
+}
 
 pub struct Flower {
     el: EventLoop<()>,
-    windows: FxHashMap<WindowId, Window>,
+    windows: Vec<(i32, Takeable<ControlWrapper<ControlWrapper<Window>>>)>,
+    window_id_map: FxHashMap<WindowId, i32>,
 }
 
 impl Flower {
     pub fn new() -> Self {
-        Flower { el: EventLoop::new(), windows: FxHashMap::default() }
+        Flower { el: EventLoop::new(), windows: Vec::new(), window_id_map: FxHashMap::default() }
     }
     // pub fn window(mut self, name: String, mut window: Window<T>) -> Self {
     //     unsafe {
@@ -88,7 +94,10 @@ impl Flower {
                             // windowed_context.resize(physical_size);
                         }
                         WindowEvent::CloseRequested => {
-                            self.windows.remove(&window_id);
+                            let id = self.window_id_map.get(&window_id).unwrap();
+                            let this_index = self.windows.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
+                            Takeable::take(&mut self.windows.remove(this_index).1);
+
                             // if let Some(window) = WINDOW_MAP.remove(&window_id) {
 
                             println!("Window with ID {:?} has been closed", window_id);
@@ -143,20 +152,28 @@ impl Flower {
 
 
             let id = window.window().id();
+            let state_id = state.id();
             let mut win = Window {
                 control_state: state,
                 gl,
                 shader_version,
                 window: Box::new(window),
             };
-            self.windows.insert(id, win);
+            self.windows.push((state_id.clone(), Takeable::new(ControlWrapper::Control(ControlWrapper::Control(win)))));
+            self.window_id_map.insert(id, state_id);
         }
         self
     }
 
-    pub fn get_window(mut self)-> Option<&mut Window>{
-
-        Sone(self.windows.get_mut(s))
+    pub fn get_window(&mut self, id: i32) -> Result<&mut ControlWrapper<Window>, Error> {
+        // let id = self.window_id_map.get(&id).unwrap();
+        let this_index = self.windows.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
+        let mut wrapper = *self.windows[this_index].1;
+        match wrapper {
+            ControlWrapper::Control(ref mut s) => {
+                Ok(s)
+            }
+        }
     }
 }
 //

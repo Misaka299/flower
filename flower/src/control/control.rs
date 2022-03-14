@@ -1,5 +1,7 @@
 use std::any::{Any, TypeId};
+use std::cell::RefCell;
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
@@ -8,7 +10,7 @@ use rustc_hash::FxHashMap;
 
 
 // 控件存储。窗口也视作一个控件
-pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, &mut dyn Control<Target=ControlState>>> = Lazy::new(|| FxHashMap::default());
+pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
 
 // Why does setting zero make Windows invisible
 static mut ID_TAG: AtomicI32 = AtomicI32::new(1);
@@ -137,6 +139,8 @@ pub trait Control: Any + Deref<Target=ControlState> {
         for id in self.child().iter() {
             unsafe {
                 if let Some(control) = CONTROL_MAP.get_mut(&id) {
+                    let control = control.clone();
+                    let control = &mut *control.borrow_mut();
                     let child_level = control.find_event_control_id(x, y);
                     // z-index 优先级最高
                     if self_level.0 < child_level.0 {
@@ -305,7 +309,7 @@ impl Rect {
     }
 }
 
-pub fn get<T: Any>(id: i32) -> &'static T {
-    let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
-    control.downcast_ref().unwrap()
-}
+// pub fn get<T: Any>(id: i32) -> &'static T {
+//     let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
+//     control.downcast_ref().unwrap()
+// }
