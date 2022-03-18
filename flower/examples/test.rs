@@ -1,3 +1,5 @@
+use std::fs::{read_dir, ReadDir};
+
 //
 //
 // use glutin::event::{Event, WindowEvent};
@@ -65,4 +67,15 @@
 //         }
 //     });
 // }
-fn main() {}
+fn main() {
+    let items: ReadDir = read_dir(".").unwrap();
+
+    for item in items {
+        if let Ok(curr) = item{
+            let file_name = curr.file_name();
+            let name:&str = file_name.to_str().unwrap();
+            eprintln!("{}",name);
+        }
+    }
+
+}

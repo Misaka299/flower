@@ -1,90 +1,38 @@
 use std::any::Any;
 use std::borrow::Borrow;
-use std::fmt::Error;
 use std::ops::Deref;
 
-use glow::{Context, HasContext};
-use glutin::{ContextCurrentState, ContextWrapper, PossiblyCurrent};
+use glow::HasContext;
+use glutin::ContextCurrentState;
 use glutin::event::WindowEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
-use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use takeable_option::Takeable;
 
 use crate::control::control::{Control, ControlState, ControlType};
+use crate::window::Window;
 
 pub mod window;
 pub mod control;
 pub mod event;
-pub mod graphics;
 mod util;
-
-
-static mut NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
-
-pub enum ControlWrapper<T> {
-    Control(T)
-}
-
-// #[derive(Copy)]
-pub struct Window {
-    control_state: ControlState,
-    gl: Context,
-    shader_version: String,
-    window: Box<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
-}
-
-
-impl Deref for Window {
-    type Target = ControlState;
-
-    fn deref(&self) -> &Self::Target {
-        &self.control_state
-    }
-}
-
-impl Window {
-    // pub fn create(self) -> Self {
-    //     let state = ControlState::create(vec![], ControlType::Label, 0, 0);
-    //     Window {
-    //         control_state: state,
-    //         gl,
-    //         shader_version,
-    //         window,
-    //     }
-    // }
-}
-
-impl Control for Window {
-    fn get_control_type(&self) -> ControlType {
-        todo!()
-    }
-
-    fn on_draw(&self) {}
-}
 
 pub struct Flower {
     el: EventLoop<()>,
-    windows: Vec<(i32, Takeable<ControlWrapper<ControlWrapper<Window>>>)>,
+    windows: Vec<(i32, Window)>,
     window_id_map: FxHashMap<WindowId, i32>,
+    window_name_map: FxHashMap<String, i32>,
 }
 
 impl Flower {
     pub fn new() -> Self {
-        Flower { el: EventLoop::new(), windows: Vec::new(), window_id_map: FxHashMap::default() }
+        Flower { el: EventLoop::new(), windows: Vec::new(), window_id_map: FxHashMap::default(), window_name_map: FxHashMap::default() }
     }
-    // pub fn window(mut self, name: String, mut window: Window<T>) -> Self {
-    //     unsafe {
-    //         NAME_MAP.insert(name, window.id());
-    //         WINDOW_MAP.insert(window.window_id.unwrap().clone(), window);
-    //     }
-    //     self
-    // }
     pub fn open(mut self) {
         unsafe {
             self.el.run(move |event, _, control_flow| {
-                println!("{:?}", event);
+                // println!("{:?}", event);
                 match event {
                     glutin::event::Event::LoopDestroyed => return,
                     glutin::event::Event::WindowEvent { event, window_id } => match event {
@@ -94,9 +42,11 @@ impl Flower {
                             // windowed_context.resize(physical_size);
                         }
                         WindowEvent::CloseRequested => {
-                            let id = self.window_id_map.get(&window_id).unwrap();
+                            let id = self.window_id_map.remove(&window_id).unwrap();
                             let this_index = self.windows.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
-                            Takeable::take(&mut self.windows.remove(this_index).1);
+                            self.windows.remove(this_index);
+
+                            // Takeable::take(&mut self.windows.remove(this_index).1);
 
                             // if let Some(window) = WINDOW_MAP.remove(&window_id) {
 
@@ -106,6 +56,19 @@ impl Flower {
                         _ => (),
                     },
                     glutin::event::Event::RedrawRequested(window_id) => {
+                        let win_id = self.window_id_map.get(&window_id).unwrap();
+                        let window_index = (*win_id as usize) - 1;
+                        // println!("window_index : {}", window_index);
+                        let x = &mut self.windows[window_index].1;
+                        x.draw();
+                        // println!("x.id : {:?}", x.id());
+                        x.window.swap_buffers().unwrap();
+                        // if let Some(id) = self.window_id_map.get(&window_id) {
+                        //     let x = &mut self.windows[*id as usize].1;
+                        //     println!("{}", x.id());
+                        // }
+
+
                         // let window = &WINDOW_MAP[&window_id];
                         //
                         // let mut color = [1.0, 0.5, 0.7, 1.0];
@@ -131,10 +94,10 @@ impl Flower {
             });
         }
     }
-    pub fn create_window(mut self) -> Self {
+    pub fn create_window(mut self, name: String, title: String) -> Self {
         let state = ControlState::create(vec![], ControlType::Label, 0, 0);
         let window_builder = glutin::window::WindowBuilder::new()
-            .with_title("Hello triangle!")
+            .with_title(&title)
             .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
         unsafe {
             let window = glutin::ContextBuilder::new()
@@ -143,37 +106,28 @@ impl Flower {
                 .unwrap()
                 .make_current()
                 .unwrap();
+
             let gl =
                 glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+
+
             let shader_version = util::find_version(gl.get_parameter_string(glow::VERSION));
+
 
             //can i use this version?
             println!("{:?}", &shader_version);
 
-
             let id = window.window().id();
             let state_id = state.id();
-            let mut win = Window {
-                control_state: state,
-                gl,
-                shader_version,
-                window: Box::new(window),
-            };
-            self.windows.push((state_id.clone(), Takeable::new(ControlWrapper::Control(ControlWrapper::Control(win)))));
+            self.windows.push((state_id.clone(), Window::create(state, title, gl, shader_version, window)));
             self.window_id_map.insert(id, state_id);
         }
         self
     }
 
-    pub fn get_window(&mut self, id: i32) -> Result<&mut ControlWrapper<Window>, Error> {
-        // let id = self.window_id_map.get(&id).unwrap();
+    pub fn get_window(&mut self, id: i32) -> &mut Window {
         let this_index = self.windows.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
-        let mut wrapper = *self.windows[this_index].1;
-        match wrapper {
-            ControlWrapper::Control(ref mut s) => {
-                Ok(s)
-            }
-        }
+        &mut self.windows[this_index].1
     }
 }
 //

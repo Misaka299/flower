@@ -1,122 +1,134 @@
-// use std::borrow::{Borrow, BorrowMut};
-// use std::cell::RefCell;
-// use std::ops::{Deref, DerefMut};
-// use std::rc::Rc;
-//
-// use log::{error, info, warn};
-//
-// use miniquad::graphics;
-// use nona::{Align, Color, Gradient, Point};
-// use nonaquad::nvgimpl;
-// use windows::event::Event;
-// use windows::window::{NativeWindow, NativeWindowSetting};
-//
-// use crate::control::control::{Control, CONTROL_MAP, control_state, ControlType};
-// use crate::get_control;
-//
-//
-// #[derive(Clone)]
-// pub struct Window {
-//     control_state: control_state,
-//     window: Rc<RefCell<NativeWindow>>,
-//     /// 在 NativeWindow 里的proc是无法检索组件id的，所以这里做一层检索代理
-//     event_proc: Option<fn(i32, Event)>,
-// }
-//
-// impl Window {
-//     pub fn create(window_title: String) -> Window {
-//         let state = control_state::create(vec![], ControlType::WINDOW, 0, 0);
-//         let window = NativeWindow::create(state.id(), NativeWindowSetting::build()
-//             .window_title(window_title)
-//             .scale(1.0)
-//             .native_event_proc(proxy_event_proc),
-//         );
-//         Window {
-//             control_state: state,
-//             window,
-//             event_proc: None,
-//         }
-//     }
-//
-//     pub fn window_title(mut self, window_title: String) -> Window {
-//         let mut rc = Rc::clone(&mut self.window);
-//         (*rc).borrow_mut().set_window_title(window_title);
-//         self
-//     }
-//     pub fn scale(mut self, scale: f32) -> Window {
-//         let mut rc = Rc::clone(&mut self.window);
-//         (*rc).borrow_mut().set_scale(scale);
-//         self
-//     }
-//     pub fn height(mut self, height: i32) -> Window {
-//         let mut rc = Rc::clone(&mut self.window);
-//         (*rc).borrow_mut().set_height(height);
-//         self
-//     }
-//     pub fn width(mut self, width: i32) -> Window {
-//         let mut rc = Rc::clone(&mut self.window);
-//         (*rc).borrow_mut().set_width(width);
-//         self
-//     }
-//
-//     pub fn event_proc(mut self, event_proc: fn(i32, Event)) -> Window {
-//         self.event_proc = Some(event_proc);
-//         self
-//     }
-//
-//     pub fn add_child(mut self, child: impl Control<Target=control_state>) -> Window {
-//         let mut x = self.control_state.child().clone();
-//         x.push(child.id());
-//         self.borrow_mut().set_child(x);
-//         self
-//     }
-// }
-//
-// impl Deref for Window {
-//     type Target = control_state;
-//     fn deref(&self) -> &control_state {
-//         &self.control_state
-//     }
-// }
-//
-// impl DerefMut for Window {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.control_state
-//     }
-// }
-//
-// impl Control for Window {
-//     fn get_control_type(&self) -> ControlType {
-//         ControlType::WINDOW
-//     }
-//
-//     fn on_draw(&self) {
-//
-//     }
-// }
-//
-// // pub fn proxy_event_proc(id: i32, event: Event) {
-// //     if let Some(win) = get_control::<Window>(id) {
-// //         match win.event_proc {
-// //             Some(proc) => {
-// //                 let mut event_control_id = win.id();
-// //                 match event {
-// //                     Event::LButtonDown(x, y) => {
-// //                         win.find_event_control_id(x, y).2;
-// //                     }
-// //                     Event::OnPrint => {
-// //                         win.on_draw();
-// //                     }
-// //                     _ => {}
-// //                 };
-// //                 info!("An event with window ID {} was received, to call event handle function.Response Control ID is : {}", id,event_control_id);
-// //                 proc(event_control_id, event);
-// //             }
-// //             None => {
-// //                 warn!("event_proc is null")
-// //             }
-// //         }
-// //     } else {
-// //         error!("An event with window ID {} was received, but the window was not found", id);
-// //     }
-// // }
+use std::ops::{Deref, DerefMut};
+use std::ptr::null;
+
+use glow::{Context, HasContext};
+use glutin::{ContextWrapper, PossiblyCurrent};
+use takeable_option::Takeable;
+
+use crate::{Control, ControlState, ControlType};
+
+pub struct Window {
+    title: String,
+    control_state: ControlState,
+    gl: Context,
+    shader_version: String,
+    pub(crate) window: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
+}
+
+impl Window {
+    pub fn create(state: ControlState, title: String, gl: Context, shader_version: String, window: ContextWrapper<PossiblyCurrent, glutin::window::Window>) -> Self {
+        Window {
+            title,
+            control_state: state,
+            gl,
+            shader_version,
+            window: Takeable::new(window),
+        }
+    }
+}
+
+
+impl Deref for Window {
+    type Target = ControlState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.control_state
+    }
+}
+
+impl Window {
+    // 发起绘制
+    pub fn draw(&mut self) {
+        unsafe { self.on_draw(&*null() as &Context); }
+        for x in self.control_state.child.iter_mut() {
+            x.draw(&self.gl);
+        }
+    }
+}
+
+impl DerefMut for Window {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self
+    }
+}
+
+impl Control for Window {
+    fn get_control_type(&self) -> ControlType {
+        ControlType::Window
+    }
+
+    fn on_draw(&mut self, gl: &Context) {
+        unsafe {
+            if !self.window.is_current() {
+                let wrapper = Takeable::take(&mut self.window);
+                let wrapper = wrapper.make_current().expect("make current error!");
+                self.window = Takeable::new(wrapper);
+            }
+            let gl = &self.gl;
+            // println!("draw window_id : {:?} {:?}",self.id(), &gl.version());
+            let vertex_array = gl
+                .create_vertex_array()
+                .expect("Cannot create vertex array");
+            gl.bind_vertex_array(Some(vertex_array));
+
+            let program = gl.create_program().expect("Cannot create program");
+
+            let (vertex_shader_source, fragment_shader_source) = (
+                r#"const vec2 verts[3] = vec2[3](
+                vec2(0.5f, 1.0f),
+                vec2(0.0f, 0.0f),
+                vec2(1.0f, 0.0f)
+            );
+            out vec2 vert;
+            void main() {
+                vert = verts[gl_VertexID];
+                gl_Position = vec4(vert - 0.5, 0.0, 1.0);
+            }"#,
+                r#"precision mediump float;
+            in vec2 vert;
+            out vec4 color;
+            void main() {
+                color = vec4(vert, 0.5, 1.0);
+            }"#,
+            );
+
+            let shader_sources = [
+                (glow::VERTEX_SHADER, vertex_shader_source),
+                (glow::FRAGMENT_SHADER, fragment_shader_source),
+            ];
+
+            let mut shaders = Vec::with_capacity(shader_sources.len());
+
+            for (shader_type, shader_source) in shader_sources.iter() {
+                let shader = gl
+                    .create_shader(*shader_type)
+                    .expect("Cannot create shader");
+                gl.shader_source(shader, &format!("{}\n{}", "#version 460", shader_source));
+                gl.compile_shader(shader);
+                if !gl.get_shader_compile_status(shader) {
+                    panic!("{}", gl.get_shader_info_log(shader));
+                }
+                gl.attach_shader(program, shader);
+                shaders.push(shader);
+            }
+
+            gl.link_program(program);
+            if !gl.get_program_link_status(program) {
+                panic!("{}", gl.get_program_info_log(program));
+            }
+
+            for shader in shaders {
+                gl.detach_shader(program, shader);
+                gl.delete_shader(shader);
+            }
+
+            gl.use_program(Some(program));
+            gl.clear_color(0.1, 0.2, 0.3, 1.0);
+
+            gl.clear(glow::COLOR_BUFFER_BIT);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+
+            // println!("error {}",gl.get_error());
+        }
+    }
+}

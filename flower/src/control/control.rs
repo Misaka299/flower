@@ -1,13 +1,12 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
-
 
 // 控件存储。窗口也视作一个控件
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
@@ -34,7 +33,6 @@ pub enum Position {
     Relative,
 }
 
-#[derive(Clone)]
 pub struct ControlState {
     /// 组件id
     id: i32,
@@ -48,14 +46,18 @@ pub struct ControlState {
     base_left: i32,
     base_top: i32,
     rect: Rect,
+    /// 子级组件
+    pub(crate) child: Vec<(Box<dyn Control<Target=ControlState>>)>,
     /// 是否禁用
     disable: bool,
     /// 是否可视
     visual: bool,
-    /// 层级
-    z_index: i32,
-    /// 子级组件
-    child: Vec<i32>,
+    // 是否鼠标进入
+    is_mouse_in: bool,
+    // 是否焦点
+    focus: bool,
+    // 是否禁止捕获焦点
+    non_focus: bool,
 }
 
 impl ControlState {
@@ -78,9 +80,21 @@ impl ControlState {
             },
             disable: false,
             visual: true,
-            z_index: 0,
+            is_mouse_in: false,
+            focus: false,
+            non_focus: false,
             child: vec![],
         }
+    }
+
+    pub fn find_control_by_id(&mut self, id: i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        let this_index = self.child.binary_search_by(|c| c.id.cmp(&id)).unwrap();
+        return Some(&mut self.child[this_index]);
+    }
+
+    pub fn find_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: i32) -> Option<&mut T> {
+        let this_index = self.child.binary_search_by(|c| c.id.cmp(&id)).unwrap();
+        return self.child[this_index].downcast_mut();
     }
 
     pub fn id(&self) -> i32 {
@@ -110,11 +124,13 @@ impl ControlState {
     pub fn visual(&self) -> bool {
         self.visual
     }
-    pub fn z_index(&self) -> i32 {
-        self.z_index
-    }
-    pub fn child(&self) -> &Vec<i32> {
+
+    pub fn child(&self) -> &Vec<Box<dyn Control<Target=ControlState>>> {
         &self.child
+    }
+
+    pub(crate) fn child_mut(&mut self) -> &mut Vec<Box<dyn Control<Target=ControlState>>> {
+        &mut self.child
     }
 }
 
@@ -126,44 +142,57 @@ impl Deref for ControlState {
     }
 }
 
-pub trait Control: Any + Deref<Target=ControlState> {
+
+pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
+    /// 获取组件的类型
     fn get_control_type(&self) -> ControlType;
+
     /// x,y 窗口发生事件时，鼠标在窗口内的相对坐标
     /// 层级数字越大，这个控件就越优先级高
     /// 层级相等，id大的控件优先级高
     /// (i32, u8, i32) z-index,层级,组件id
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
-    fn find_event_control_id(&self, x: i32, y: i32) -> (i32, u8, i32) {
-        let mut self_level = (self.z_index(), 0, self.id());
-        for id in self.child().iter() {
+    fn find_event_control_id(&self, x: i32, y: i32) -> Option<(u8, i32)> {
+        if !self.visual {
+            return None;
+        }
+        let mut self_level = (0, self.id());
+        for child in self.child().iter() {
             unsafe {
-                if let Some(control) = CONTROL_MAP.get_mut(&id) {
-                    let control = control.clone();
-                    let control = &mut *control.borrow_mut();
-                    let child_level = control.find_event_control_id(x, y);
-                    // z-index 优先级最高
+                // 不可视的控件，其子控件也不会绘制
+                if !child.visual {
+                    continue;
+                }
+                if let Some(child_level) = child.find_event_control_id(x, y) {
+                    // 如果子控件的层级更高，那就用子控件
                     if self_level.0 < child_level.0 {
                         self_level = child_level;
                     }
-                    // 如果子控件的层级更高，那就用子控件
-                    if self_level.1 < child_level.1 {
-                        self_level = child_level;
-                    }
                     // 如果子控件的层级一样
-                    if self_level.1 == child_level.1 {
+                    if self_level.0 == child_level.0 {
                         // 那就用id数量大的，也就是后来创建的
-                        if self_level.2 < child_level.2 {
+                        if self_level.1 < child_level.1 {
                             self_level = child_level;
                         }
                     }
-                };
+                }
             }
         }
-        self_level
+        Some(self_level)
     }
 
-    fn on_draw(&self);
+    /// 绘制事件传播
+    fn draw(&mut self, gl: &glow::Context) {
+        self.on_draw(gl);
+        let child = &mut self.child;
+        for mut x in child {
+            x.draw(gl);
+        }
+    }
+
+    // 组件自我绘制
+    fn on_draw(&mut self, gl: &glow::Context);
 }
 
 impl dyn Control {

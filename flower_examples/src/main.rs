@@ -1,12 +1,5 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::ops::{Deref, DerefMut};
-
-use log::info;
-use once_cell::sync::OnceCell;
-use once_cell::unsync::Lazy;
-
-use flower::{Flower, Window};
-use flower::event::Event;
+use flower::control::control::ControlType::Button;
+use flower::Flower;
 
 // use flower::control::button::Button;
 
@@ -19,10 +12,18 @@ fn main() {
     // 待决定
     // win_one.addChild(btn);
     // btn.set_parent(win_one);
+
+
+
     Flower::new()
         // .window("main".to_string(),Window::create())
-        .create_window()
-        .create_window().open();
+        .create_window("windows 1".to_string(),"windows 1".to_string())
+        .create_window("windwos 2".to_string(),"windows 2".to_string())
+        .create_window("windwos 3".to_string(),"windows 3".to_string())
+        .create_window("windwos 4".to_string(),"windows 4".to_string())
+        .create_window("windwos 5".to_string(),"windows 5".to_string())
+        .create_window("windwos 6".to_string(),"windows 6".to_string())
+        .open();
 }
 
 //
