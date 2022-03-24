@@ -5,7 +5,7 @@ use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
 use takeable_option::Takeable;
 
-use crate::{Control, ControlState, ControlType};
+use crate::{Control, ControlState, ControlType, EventLoop, util, WINDOW_ID_MAP, WINDOWS};
 
 pub struct Window {
     title: String,
@@ -16,17 +16,42 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn create(state: ControlState, title: String, gl: Context, shader_version: String, window: ContextWrapper<PossiblyCurrent, glutin::window::Window>) -> Self {
-        Window {
-            title,
-            control_state: state,
-            gl,
-            shader_version,
-            window: Takeable::new(window),
+    pub fn create<T>(el: &EventLoop<T>, name: String, title: String) -> &mut Window {
+        Self::create_with_control_type(ControlType::Control, el, name, title)
+    }
+
+    pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
+        let state = ControlState::create(name, vec![], control_type, 0, 0);
+        let window_builder = glutin::window::WindowBuilder::new()
+            .with_title(&title)
+            .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
+        unsafe {
+            let window = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .build_windowed(window_builder, el)
+                .unwrap()
+                .make_current()
+                .unwrap();
+            let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            let shader_version = util::find_version(gl.get_parameter_string(glow::VERSION));
+            //can i use this version?
+            println!("{:?}", &shader_version);
+            let id = window.window().id();
+            let state_id = state.id;
+            WINDOWS.push((state_id.clone(), Window {
+                title,
+                control_state: state,
+                gl,
+                shader_version,
+                window: Takeable::new(window),
+            }));
+            WINDOW_ID_MAP.insert(id, state_id);
+            // get_window_by_id(state_id)
+            let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&state_id)).unwrap();
+            &mut WINDOWS[this_index].1
         }
     }
 }
-
 
 impl Deref for Window {
     type Target = ControlState;
@@ -53,10 +78,6 @@ impl DerefMut for Window {
 }
 
 impl Control for Window {
-    fn get_control_type(&self) -> ControlType {
-        ControlType::Window
-    }
-
     fn on_draw(&mut self, gl: &Context) {
         unsafe {
             if !self.window.is_current() {

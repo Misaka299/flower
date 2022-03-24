@@ -1,8 +1,11 @@
-use flower::control::control::ControlType::Button;
-use flower::Flower;
+use flower::{ExtendLoopEvent, Flower};
+use flower::window::Window;
 
 // use flower::control::button::Button;
 
+enum MyEvent {}
+
+impl ExtendLoopEvent for MyEvent {}
 
 fn main() {
     // fast_log::init_log("requests.log", log::Level::Debug, None, true);
@@ -12,18 +15,16 @@ fn main() {
     // 待决定
     // win_one.addChild(btn);
     // btn.set_parent(win_one);
+    let flower = Flower::new();
+    Window::create(flower.el(), "windows 1".to_string(), "windows 1".to_string());
+    Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
+    Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
+    Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
+    Window::create(flower.el(), "windwos 6".to_string(), "windows 6".to_string());
 
 
-
-    Flower::new()
-        // .window("main".to_string(),Window::create())
-        .create_window("windows 1".to_string(),"windows 1".to_string())
-        .create_window("windwos 2".to_string(),"windows 2".to_string())
-        .create_window("windwos 3".to_string(),"windows 3".to_string())
-        .create_window("windwos 4".to_string(),"windows 4".to_string())
-        .create_window("windwos 5".to_string(),"windows 5".to_string())
-        .create_window("windwos 6".to_string(),"windows 6".to_string())
-        .open();
+    flower.open();
 }
 
 //

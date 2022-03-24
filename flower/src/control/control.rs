@@ -12,17 +12,15 @@ use rustc_hash::FxHashMap;
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
 
 // Why does setting zero make Windows invisible
-static mut ID_TAG: AtomicI32 = AtomicI32::new(1);
-
+static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
+static mut TOOL_ID_TAG: AtomicI32 = AtomicI32::new(-1);
 
 #[derive(Clone)]
 pub enum ControlType {
-    Window,
-    Label,
-    Button,
-    // TEXT_BOX,
-    // COMBO_BOX,
-    List,
+    // 常规的控件
+    Control,
+    // 用于MessageBox或者ToolWindow的窗口，及其控件的id注册
+    Tool,
 }
 
 #[derive(Clone)]
@@ -35,37 +33,44 @@ pub enum Position {
 
 pub struct ControlState {
     /// 组件id
-    id: i32,
+    pub(crate) id: i32,
+    pub(crate) name: String,
     /// 父级组件id
-    parent_id: i32,
+    pub(crate) parent_id: i32,
     /// 组件类名
-    class: Vec<String>,
+    pub(crate) class: Vec<String>,
     /// 组件类型
-    control_type: ControlType,
+    pub(crate) control_type: ControlType,
     /// 父级组件的位置
-    base_left: i32,
-    base_top: i32,
-    rect: Rect,
+    pub(crate) base_left: i32,
+    pub(crate) base_top: i32,
+    pub(crate) rect: Rect,
     /// 子级组件
-    pub(crate) child: Vec<(Box<dyn Control<Target=ControlState>>)>,
+    pub(crate) child: Vec<Box<dyn Control<Target=ControlState>>>,
     /// 是否禁用
-    disable: bool,
+    pub(crate) disable: bool,
     /// 是否可视
-    visual: bool,
+    pub(crate) visual: bool,
     // 是否鼠标进入
-    is_mouse_in: bool,
+    pub(crate) is_mouse_in: bool,
     // 是否焦点
-    focus: bool,
+    pub(crate) focus: bool,
     // 是否禁止捕获焦点
-    non_focus: bool,
+    pub(crate) non_focus: bool,
 }
 
 impl ControlState {
-    pub fn create(class: Vec<String>, control_type: ControlType, base_left: i32, base_top: i32) -> ControlState {
-        let id = unsafe { ID_TAG.fetch_add(1, Ordering::Release) };
+    pub fn create(name: String, class: Vec<String>, control_type: ControlType, base_left: i32, base_top: i32) -> ControlState {
+        let id = unsafe {
+            match control_type {
+                ControlType::Control => { CONTROL_ID_TAG.fetch_add(1, Ordering::Release) }
+                ControlType::Tool => { TOOL_ID_TAG.fetch_sub(1, Ordering::Release) }
+            }
+        };
         debug!("control_state Register id: {}",id);
         ControlState {
             id,
+            name,
             parent_id: 0,
             class,
             control_type,
@@ -97,6 +102,7 @@ impl ControlState {
         return self.child[this_index].downcast_mut();
     }
 
+
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -118,19 +124,70 @@ impl ControlState {
     pub fn rect(&self) -> &Rect {
         &self.rect
     }
+    pub fn child(&self) -> &Vec<Box<dyn Control<Target=ControlState>>> {
+        &self.child
+    }
     pub fn disable(&self) -> bool {
         self.disable
     }
     pub fn visual(&self) -> bool {
         self.visual
     }
-
-    pub fn child(&self) -> &Vec<Box<dyn Control<Target=ControlState>>> {
-        &self.child
+    pub fn is_mouse_in(&self) -> bool {
+        self.is_mouse_in
+    }
+    pub fn focus(&self) -> bool {
+        self.focus
+    }
+    pub fn non_focus(&self) -> bool {
+        self.non_focus
     }
 
-    pub(crate) fn child_mut(&mut self) -> &mut Vec<Box<dyn Control<Target=ControlState>>> {
-        &mut self.child
+    pub fn set_id(&mut self, id: i32) {
+        self.id = id;
+    }
+    pub fn set_parent_id(&mut self, parent_id: i32) {
+        self.parent_id = parent_id;
+    }
+    pub fn set_class(&mut self, class: Vec<String>) {
+        self.class = class;
+    }
+    pub fn set_control_type(&mut self, control_type: ControlType) {
+        self.control_type = control_type;
+    }
+    pub fn set_base_left(&mut self, base_left: i32) {
+        self.base_left = base_left;
+    }
+    pub fn set_base_top(&mut self, base_top: i32) {
+        self.base_top = base_top;
+    }
+    pub fn set_rect(&mut self, rect: Rect) {
+        self.rect = rect;
+    }
+    pub fn set_child(&mut self, child: Vec<Box<dyn Control<Target=ControlState>>>) {
+        self.child = child;
+    }
+    pub fn set_disable(&mut self, disable: bool) {
+        self.disable = disable;
+    }
+    pub fn set_visual(&mut self, visual: bool) {
+        self.visual = visual;
+    }
+    pub fn set_is_mouse_in(&mut self, is_mouse_in: bool) {
+        self.is_mouse_in = is_mouse_in;
+    }
+    pub fn set_focus(&mut self, focus: bool) {
+        self.focus = focus;
+    }
+    pub fn set_non_focus(&mut self, non_focus: bool) {
+        self.non_focus = non_focus;
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 
@@ -145,7 +202,9 @@ impl Deref for ControlState {
 
 pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// 获取组件的类型
-    fn get_control_type(&self) -> ControlType;
+    fn get_control_type(&self) -> ControlType {
+        self.control_type.clone()
+    }
 
     /// x,y 窗口发生事件时，鼠标在窗口内的相对坐标
     /// 层级数字越大，这个控件就越优先级高
@@ -157,24 +216,22 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
         if !self.visual {
             return None;
         }
-        let mut self_level = (0, self.id());
-        for child in self.child().iter() {
-            unsafe {
-                // 不可视的控件，其子控件也不会绘制
-                if !child.visual {
-                    continue;
+        let mut self_level = (0, self.id);
+        for child in &self.child {
+            // 不可视的控件，其子控件也不会绘制
+            if !child.visual {
+                continue;
+            }
+            if let Some(child_level) = child.find_event_control_id(x, y) {
+                // 如果子控件的层级更高，那就用子控件
+                if self_level.0 < child_level.0 {
+                    self_level = child_level;
                 }
-                if let Some(child_level) = child.find_event_control_id(x, y) {
-                    // 如果子控件的层级更高，那就用子控件
-                    if self_level.0 < child_level.0 {
+                // 如果子控件的层级一样
+                if self_level.0 == child_level.0 {
+                    // 那就用id数量大的，也就是后来创建的
+                    if self_level.1 < child_level.1 {
                         self_level = child_level;
-                    }
-                    // 如果子控件的层级一样
-                    if self_level.0 == child_level.0 {
-                        // 那就用id数量大的，也就是后来创建的
-                        if self_level.1 < child_level.1 {
-                            self_level = child_level;
-                        }
                     }
                 }
             }
@@ -186,7 +243,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     fn draw(&mut self, gl: &glow::Context) {
         self.on_draw(gl);
         let child = &mut self.child;
-        for mut x in child {
+        for x in child {
             x.draw(gl);
         }
     }
@@ -296,49 +353,22 @@ impl dyn Control {
 #[derive(Clone)]
 pub struct Rect {
     /// 位置计算方式
-    position: Position,
+    pub(crate) position: Position,
     /// 本组件的位置
-    left: i32,
-    top: i32,
+    pub(crate) left: i32,
+    pub(crate) top: i32,
     /// 组件宽高
-    width: i32,
-    height: i32,
-}
-
-impl Rect {
-    pub fn position(&self) -> &Position {
-        &self.position
-    }
-    pub fn left(&self) -> i32 {
-        self.left
-    }
-    pub fn top(&self) -> i32 {
-        self.top
-    }
-    pub fn width(&self) -> i32 {
-        self.width
-    }
-    pub fn height(&self) -> i32 {
-        self.height
-    }
-    pub fn set_position(&mut self, position: Position) {
-        self.position = position;
-    }
-    pub fn set_left(&mut self, left: i32) {
-        self.left = left;
-    }
-    pub fn set_top(&mut self, top: i32) {
-        self.top = top;
-    }
-    pub fn set_width(&mut self, width: i32) {
-        self.width = width;
-    }
-    pub fn set_height(&mut self, height: i32) {
-        self.height = height;
-    }
+    pub(crate) width: i32,
+    pub(crate) height: i32,
 }
 
 // pub fn get<T: Any>(id: i32) -> &'static T {
 //     let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
 //     control.downcast_ref().unwrap()
+// }
+
+// pub trait ControlEvent {}
+//
+// pub struct Controls<E: Control, D> {
+//     control_state: ControlState,
 // }

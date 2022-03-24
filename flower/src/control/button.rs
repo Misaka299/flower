@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
-use glow::{Context, HasContext};
+
+use glow::Context;
 
 use crate::control::control::{Control, ControlType};
 use crate::ControlState;
@@ -11,9 +12,9 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn from(title: String) -> Button {
+    pub fn from(name: String, title: String) -> Button {
         Button {
-            control_state: ControlState::create(vec![], ControlType::Button, 0, 0),
+            control_state: ControlState::create(name, vec![], ControlType::Control, 0, 0),
             title,
             on_click: None,
         }
@@ -46,10 +47,6 @@ impl DerefMut for Button {
 }
 
 impl Control for Button {
-    fn get_control_type(&self) -> ControlType {
-        ControlType::Button
-    }
-
     fn on_draw(&mut self, gl: &Context) {
         todo!()
     }

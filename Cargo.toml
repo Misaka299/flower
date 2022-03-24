@@ -2,5 +2,5 @@
 members=[
     "flower",
     "flower_examples",
-    "native/windows"
+    "flower_control"
 ]
