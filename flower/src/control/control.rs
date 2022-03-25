@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 
+use glow::Context;
 use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
@@ -362,13 +363,51 @@ pub struct Rect {
     pub(crate) height: i32,
 }
 
-// pub fn get<T: Any>(id: i32) -> &'static T {
-//     let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
-//     control.downcast_ref().unwrap()
-// }
+pub trait ControlEvent {
+    // 组件自我绘制
+    fn on_draw(&mut self, gl: &glow::Context);
+}
 
-// pub trait ControlEvent {}
-//
-// pub struct Controls<E: Control, D> {
-//     control_state: ControlState,
-// }
+
+struct Event {
+    pub on_click: Option<fn(i32)>,
+}
+
+impl Event {
+    pub fn new() -> Event {
+        Self { on_click: None }
+    }
+}
+
+pub struct Controls<'a, T: Control> {
+    control_state: ControlState,
+    data: T,
+    event: &'a Event,
+}
+
+impl<T> Controls<T> {
+    pub fn new<T>(data: T) -> Controls<T> {
+        let state = ControlState::create(name, vec![], ControlType::Control, 0, 0);
+        let event = Event::new();
+        Self ::<T> {
+            control_state: state,
+            data,
+            event: &event,
+        }
+    }
+}
+
+pub struct Button {
+    title: String,
+}
+
+impl ControlEvent for Button {
+    fn on_draw(&mut self, gl: &Context) {}
+}
+
+fn ss() {
+    let button = Button { title: "ss".to_string() };
+    let controls = Controls::new(button);
+}
+
+pub struct Skin {}
