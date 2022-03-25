@@ -1,7 +1,7 @@
 use flower::{ExtendLoopEvent, Flower};
 use flower::window::Window;
 
-// use flower::control::button::Button;
+// use flower::controls::button::Button;
 
 enum MyEvent {}
 

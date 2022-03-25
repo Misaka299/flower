@@ -2,13 +2,12 @@ use std::ops::{Deref, DerefMut};
 
 use glow::Context;
 
-use crate::control::control::{Control, ControlType};
-use crate::ControlState;
+use crate::control::{Control, ControlState, ControlType};
 
 pub struct Button {
     control_state: ControlState,
     title: String,
-    on_click: Option<Box<dyn Fn()>>,
+    on_click:Option<Box<dyn Fn()>>,
 }
 
 impl Button {

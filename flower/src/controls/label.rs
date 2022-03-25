@@ -3,7 +3,7 @@
 //
 // use nonaquad::nvgimpl;
 //
-// use crate::control::control::{Control, control_state};
+// use crate::controls::controls::{Control, control_state};
 // use crate::ControlType;
 //
 // pub struct Label {

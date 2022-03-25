@@ -361,14 +361,3 @@ pub struct Rect {
     pub(crate) width: i32,
     pub(crate) height: i32,
 }
-
-// pub fn get<T: Any>(id: i32) -> &'static T {
-//     let control = unsafe { CONTROL_MAP.get_mut(&id).unwrap() };
-//     control.downcast_ref().unwrap()
-// }
-
-// pub trait ControlEvent {}
-//
-// pub struct Controls<E: Control, D> {
-//     control_state: ControlState,
-// }

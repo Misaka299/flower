@@ -1,4 +1,4 @@
-// use crate::control::control::Rect;
+// use crate::controls::controls::Rect;
 //
 // pub fn calc_(rect: Rect) {
 //

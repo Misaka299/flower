@@ -4,13 +4,13 @@ use glutin::window::WindowId;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
-use crate::control::control::{Control, ControlState, ControlType};
 use crate::window::Window;
 
 pub mod window;
-pub mod control;
 pub mod event;
 pub(crate) mod util;
+pub mod controls;
+pub mod control;
 
 pub static mut WINDOWS: Lazy<Vec<(i32, Window)>> = Lazy::new(|| Vec::new());
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
@@ -81,7 +81,7 @@ pub fn get_id_by_window_id(window_id: &WindowId) -> i32 {
 
 pub fn get_window_by_window_id(window_id: &WindowId) -> &mut Window {
     unsafe {
-        let id = WINDOW_ID_MAP.get(&window_id).unwrap();
+        let id = WINDOW_ID_MAP.get(window_id).unwrap();
         get_window_by_id(id)
     }
 }
@@ -101,7 +101,7 @@ pub fn remove_window_by_id(id: &i32) -> String {
         // 删除window_id map数据
         WINDOW_ID_MAP.remove(&win.window.window().id());
         WINDOW_NAME_MAP.remove(win.name());
-        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap() + 1;
+        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap();
         WINDOWS.remove(vec_index);
         println!("Window with ID {:?} has been closed", id);
         win.name().to_string()
@@ -110,12 +110,12 @@ pub fn remove_window_by_id(id: &i32) -> String {
 
 pub fn remove_window_by_window_id(id: &WindowId) -> String {
     unsafe {
-        // 删除window_id map数据
-        WINDOW_ID_MAP.remove(&id);
         let win = get_window_by_window_id(id);
         WINDOW_NAME_MAP.remove(win.name());
-        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap() + 1;
+        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap();
         WINDOWS.remove(vec_index);
+        // 删除window_id map数据
+        WINDOW_ID_MAP.remove(&id);
         println!("Window with ID {:?} has been closed", id);
         win.name().to_string()
     }

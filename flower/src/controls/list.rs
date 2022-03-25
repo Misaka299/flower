@@ -1,7 +1,7 @@
 // use std::any::Any;
 // use std::ops::Deref;
 //
-// use crate::control::control::{Control, ControlState};
+// use crate::controls::controls::{Control, ControlState};
 // use crate::ControlType;
 // use crate::graphics::draw::Draw;
 //

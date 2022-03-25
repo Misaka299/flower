@@ -3,9 +3,11 @@ use std::ptr::null;
 
 use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
+use glutin::event_loop::EventLoop;
 use takeable_option::Takeable;
+use crate::control::{Control, ControlState, ControlType};
+use crate::{util, WINDOW_ID_MAP, WINDOWS};
 
-use crate::{Control, ControlState, ControlType, EventLoop, util, WINDOW_ID_MAP, WINDOWS};
 
 pub struct Window {
     title: String,
