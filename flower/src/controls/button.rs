@@ -6,15 +6,15 @@ use crate::control::{Control, ControlState, ControlType};
 
 pub struct Button {
     control_state: ControlState,
-    title: String,
+    text: String,
     on_click:Option<Box<dyn Fn()>>,
 }
 
 impl Button {
-    pub fn from(name: String, title: String) -> Button {
+    pub fn from(name: String, text: String) -> Button {
         Button {
             control_state: ControlState::create(name, vec![], ControlType::Control, 0, 0),
-            title,
+            text,
             on_click: None,
         }
     }
@@ -22,12 +22,12 @@ impl Button {
         self.on_click = Some(fn_on_click);
         self
     }
-    pub fn set_text(&mut self, title: String) -> &mut Self {
-        self.title = title;
+    pub fn set_text(&mut self, text: String) -> &mut Self {
+        self.text = text;
         self
     }
     pub fn get_text(&self) -> String {
-        self.title.clone()
+        self.text.clone()
     }
 }
 
@@ -41,12 +41,12 @@ impl Deref for Button {
 
 impl DerefMut for Button {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self
+        &mut self.control_state
     }
 }
 
 impl Control for Button {
     fn on_draw(&mut self, gl: &Context) {
-        todo!()
+        println!("btn draw");
     }
 }

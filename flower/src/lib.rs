@@ -11,6 +11,7 @@ pub mod event;
 pub(crate) mod util;
 pub mod controls;
 pub mod control;
+pub mod draw;
 
 pub static mut WINDOWS: Lazy<Vec<(i32, Window)>> = Lazy::new(|| Vec::new());
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());

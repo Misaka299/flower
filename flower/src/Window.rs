@@ -6,7 +6,7 @@ use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::event_loop::EventLoop;
 use takeable_option::Takeable;
 use crate::control::{Control, ControlState, ControlType};
-use crate::{util, WINDOW_ID_MAP, WINDOWS};
+use crate::{util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 
 
 pub struct Window {
@@ -23,7 +23,7 @@ impl Window {
     }
 
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
-        let state = ControlState::create(name, vec![], control_type, 0, 0);
+        let state = ControlState::create(name.clone(), vec![], control_type, 0, 0);
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
             .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
@@ -48,6 +48,7 @@ impl Window {
                 window: Takeable::new(window),
             }));
             WINDOW_ID_MAP.insert(id, state_id);
+            WINDOW_NAME_MAP.insert(name.clone(),state_id);
             // get_window_by_id(state_id)
             let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&state_id)).unwrap();
             &mut WINDOWS[this_index].1
@@ -75,7 +76,7 @@ impl Window {
 
 impl DerefMut for Window {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self
+        &mut self.control_state
     }
 }
 

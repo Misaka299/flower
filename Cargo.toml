@@ -2,5 +2,4 @@
 members=[
     "flower",
     "flower_examples",
-    "flower_control"
 ]

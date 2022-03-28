@@ -1,4 +1,5 @@
 use flower::{ExtendLoopEvent, Flower};
+use flower::controls::button::Button;
 use flower::window::Window;
 
 // use flower::controls::button::Button;
@@ -16,7 +17,10 @@ fn main() {
     // win_one.addChild(btn);
     // btn.set_parent(win_one);
     let flower = Flower::new();
-    Window::create(flower.el(), "windows 1".to_string(), "windows 1".to_string());
+    let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());
+    println!("pre add");
+    win1.add_child(Box::new(Button::from("btn_ok".to_string(),"hello".to_string())));
+    println!("bef add end");
     Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
     Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
     Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
