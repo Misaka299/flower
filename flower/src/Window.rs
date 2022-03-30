@@ -1,5 +1,5 @@
 use std::ops::{Deref, DerefMut};
-use std::ptr::null;
+use std::ptr::{null, null_mut};
 
 use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
@@ -7,12 +7,13 @@ use glutin::event_loop::EventLoop;
 use takeable_option::Takeable;
 use crate::control::{Control, ControlState, ControlType};
 use crate::{util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
+use crate::draw::Draw;
 
 
 pub struct Window {
     title: String,
     control_state: ControlState,
-    gl: Context,
+    gl: Draw,
     shader_version: String,
     pub(crate) window: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
 }
@@ -43,7 +44,7 @@ impl Window {
             WINDOWS.push((state_id.clone(), Window {
                 title,
                 control_state: state,
-                gl,
+                gl:Draw::new(gl),
                 shader_version,
                 window: Takeable::new(window),
             }));
@@ -53,6 +54,23 @@ impl Window {
             let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&state_id)).unwrap();
             &mut WINDOWS[this_index].1
         }
+    }
+
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+    pub fn control_state(&self) -> &ControlState {
+        &self.control_state
+    }
+    pub fn gl(&self) -> &Context {
+        &self.gl
+    }
+    pub fn shader_version(&self) -> &str {
+        &self.shader_version
+    }
+    pub fn window(&self) -> &Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>> {
+        &self.window
     }
 }
 
@@ -67,9 +85,9 @@ impl Deref for Window {
 impl Window {
     // 发起绘制
     pub fn draw(&mut self) {
-        unsafe { self.on_draw(&*null() as &Context); }
+        unsafe { self.on_draw(&mut *null_mut() as &mut Draw); }
         for x in self.control_state.child.iter_mut() {
-            x.draw(&self.gl);
+            x.draw(&mut self.gl);
         }
     }
 }
@@ -81,7 +99,7 @@ impl DerefMut for Window {
 }
 
 impl Control for Window {
-    fn on_draw(&mut self, gl: &Context) {
+    fn on_draw(&mut self, gl: &mut Draw) {
         unsafe {
             if !self.window.is_current() {
                 let wrapper = Takeable::take(&mut self.window);
@@ -151,6 +169,8 @@ impl Control for Window {
 
             gl.clear(glow::COLOR_BUFFER_BIT);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.create_canvas(self.rect());
+            println!("window draw");
 
             // println!("error {}",gl.get_error());
         }

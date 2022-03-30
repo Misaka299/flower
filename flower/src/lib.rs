@@ -12,14 +12,14 @@ pub(crate) mod util;
 pub mod controls;
 pub mod control;
 pub mod draw;
+pub mod rect;
+pub mod color;
+
+pub type Px = f64;
 
 pub static mut WINDOWS: Lazy<Vec<(i32, Window)>> = Lazy::new(|| Vec::new());
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
 pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
-
-pub trait ExtendLoopEvent {}
-
-impl ExtendLoopEvent for () {}
 
 pub struct Flower<T: 'static> {
     el: EventLoop<T>,

@@ -1,31 +1,26 @@
-use flower::{ExtendLoopEvent, Flower};
 use flower::controls::button::Button;
+use flower::Flower;
 use flower::window::Window;
 
 // use flower::controls::button::Button;
 
-enum MyEvent {}
-
-impl ExtendLoopEvent for MyEvent {}
-
 fn main() {
     // fast_log::init_log("requests.log", log::Level::Debug, None, true);
 
-    // let btn: Button = Button::build().parent(&win_one).create();
-
-    // 待决定
-    // win_one.addChild(btn);
-    // btn.set_parent(win_one);
     let flower = Flower::new();
     let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());
-    println!("pre add");
-    win1.add_child(Box::new(Button::from("btn_ok".to_string(),"hello".to_string())));
-    println!("bef add end");
-    Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
-    Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
-    Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
-    Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
-    Window::create(flower.el(), "windwos 6".to_string(), "windows 6".to_string());
+    let mut button = Button::from("btn_ok".to_string(), "hello".to_string());
+    button.top = 200.;
+    button.height = 200.;
+    button.left = 400.;
+    button.width = 400.;
+    win1.add_child(button);
+
+    // Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    // Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
+    // Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
+    // Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
+    // Window::create(flower.el(), "windwos 6".to_string(), "windows 6".to_string());
 
 
     flower.open();

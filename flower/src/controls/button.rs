@@ -1,13 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
-use glow::Context;
-
+use crate::color::Color;
 use crate::control::{Control, ControlState, ControlType};
+use crate::draw::Draw;
 
 pub struct Button {
     control_state: ControlState,
     text: String,
-    on_click:Option<Box<dyn Fn()>>,
+    on_click: Option<Box<dyn Fn()>>,
 }
 
 impl Button {
@@ -46,7 +46,10 @@ impl DerefMut for Button {
 }
 
 impl Control for Button {
-    fn on_draw(&mut self, gl: &Context) {
+    fn on_draw(&mut self, gl: &mut Draw) {
         println!("btn draw");
+        gl.create_canvas(&self.rect);
+        gl.rect(&self.rect, &Color::rgb(0,191,255));
+        // gl.fill(&self.rect, &Color::rgb(0,191,255));
     }
 }

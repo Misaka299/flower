@@ -7,8 +7,9 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
+use crate::draw::Draw;
+use crate::rect::Rect;
 
-use crate::Id;
 
 // 控件存储。窗口也视作一个控件
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
@@ -35,10 +36,10 @@ pub enum Position {
 
 pub struct ControlState {
     /// 组件id
-    pub(crate) id: Id,
+    pub(crate) id: i32,
     pub(crate) name: String,
     /// 父级组件id
-    pub(crate) parent_id: Id,
+    pub(crate) parent_id: i32,
     /// 组件类名
     pub(crate) class: Vec<String>,
     /// 组件类型
@@ -46,6 +47,8 @@ pub struct ControlState {
     /// 父级组件的位置
     pub(crate) base_left: i32,
     pub(crate) base_top: i32,
+    /// 位置计算方式
+    pub(crate) position: Position,
     pub(crate) rect: Rect,
     /// 子级组件
     pub(crate) child: Vec<Box<dyn Control<Target=ControlState>>>,
@@ -71,20 +74,15 @@ impl ControlState {
         };
         debug!("control_state Register id: {}",id);
         ControlState {
-            id: id as Id,
+            id,
             name,
             parent_id: 0,
             class,
             control_type,
             base_left,
             base_top,
-            rect: Rect {
-                position: Position::Relative,
-                left: 0,
-                top: 0,
-                width: 200,
-                height: 20,
-            },
+            position: Position::Relative,
+            rect: Rect::new(0.,0.,50.,20.),
             disable: false,
             visual: true,
             is_mouse_in: false,
@@ -94,24 +92,22 @@ impl ControlState {
         }
     }
 
-    pub fn add_child(&mut self, child: Box<dyn Control<Target=ControlState>>) {
-        println!("add");
-        self.child.push(child);
-        println!("add end");
+    pub fn add_child(&mut self, child: impl Control<Target=ControlState>) {
+        self.child.push(Box::new(child));
     }
 
-    pub fn find_control_by_id(&mut self, id: Id) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
-        let this_index = self.child.binary_search_by(|c| c.id.cmp(&Id)).unwrap();
+    pub fn find_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        let this_index = self.child.binary_search_by(|c| c.id.cmp(id)).unwrap();
         return Some(&mut self.child[this_index]);
     }
 
-    pub fn find_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: Id) -> Option<&mut T> {
-        let this_index = self.child.binary_search_by(|c| c.id.cmp(&Id)).unwrap();
+    pub fn find_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: &i32) -> Option<&mut T> {
+        let this_index = self.child.binary_search_by(|c| c.id.cmp(id)).unwrap();
         return self.child[this_index].downcast_mut();
     }
 
 
-    pub fn id(&self) -> Id {
+    pub fn id(&self) -> i32 {
         self.id
     }
     pub fn parent_id(&self) -> i32 {
@@ -151,10 +147,10 @@ impl ControlState {
         self.non_focus
     }
 
-    pub fn set_id(&mut self, id: Id) {
+    pub fn set_id(&mut self, id: i32) {
         self.id = id;
     }
-    pub fn set_parent_id(&mut self, parent_id: Id) {
+    pub fn set_parent_id(&mut self, parent_id: i32) {
         self.parent_id = parent_id;
     }
     pub fn set_class(&mut self, class: Vec<String>) {
@@ -207,6 +203,12 @@ impl Deref for ControlState {
     }
 }
 
+impl DerefMut for ControlState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.rect
+    }
+}
+
 
 pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// 获取组件的类型
@@ -220,7 +222,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// (i32, u8, i32) z-index,层级,组件id
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
-    fn find_event_control_id(&self, x: i32, y: i32) -> Option<(u8, Id)> {
+    fn find_event_control_id(&self, x: i32, y: i32) -> Option<(u8, i32)> {
         if !self.visual {
             return None;
         }
@@ -248,7 +250,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     /// 绘制事件传播
-    fn draw(&mut self, gl: &glow::Context) {
+    fn draw(&mut self, gl: &mut Draw) {
         self.on_draw(gl);
         let child = &mut self.child;
         for x in child {
@@ -257,7 +259,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     // 组件自我绘制
-    fn on_draw(&mut self, gl: &glow::Context);
+    fn on_draw(&mut self, gl: &mut Draw);
 }
 
 impl dyn Control {
@@ -356,16 +358,4 @@ impl dyn Control {
             None
         }
     }
-}
-
-#[derive(Clone)]
-pub struct Rect {
-    /// 位置计算方式
-    pub(crate) position: Position,
-    /// 本组件的位置
-    pub(crate) left: i32,
-    pub(crate) top: i32,
-    /// 组件宽高
-    pub(crate) width: i32,
-    pub(crate) height: i32,
 }
