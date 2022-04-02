@@ -1,3 +1,5 @@
+use fast_log::config::Config;
+use log::Level::Debug;
 use flower::controls::button::Button;
 use flower::Flower;
 use flower::window::Window;
@@ -5,7 +7,7 @@ use flower::window::Window;
 // use flower::controls::button::Button;
 
 fn main() {
-    // fast_log::init_log("requests.log", log::Level::Debug, None, true);
+    let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
 
     let flower = Flower::new();
     let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());

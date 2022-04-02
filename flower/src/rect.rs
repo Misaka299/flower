@@ -1,6 +1,7 @@
+use log::debug;
 use crate::Px;
 
-#[derive(Debug)]
+#[derive(Debug,Copy, Clone)]
 pub struct Rect {
     pub left: Px,
     pub top: Px,

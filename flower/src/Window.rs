@@ -4,9 +4,10 @@ use std::ptr::{null, null_mut};
 use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::event_loop::EventLoop;
+use log::debug;
 use takeable_option::Takeable;
 use crate::control::{Control, ControlState, ControlType};
-use crate::{util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
+use crate::{Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::draw::Draw;
 
 
@@ -24,10 +25,12 @@ impl Window {
     }
 
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
-        let state = ControlState::create(name.clone(), vec![], control_type, 0, 0);
+        let mut state = ControlState::create(name.clone(), vec![], control_type);
+        state.width = 1024 as Px;
+        state.height = 768 as Px;
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
-            .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
+            .with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
         unsafe {
             let window = glutin::ContextBuilder::new()
                 .with_vsync(true)
@@ -170,7 +173,7 @@ impl Control for Window {
             gl.clear(glow::COLOR_BUFFER_BIT);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
             gl.create_canvas(self.rect());
-            println!("window draw");
+            debug!("window[{}] draw",self.id());
 
             // println!("error {}",gl.get_error());
         }

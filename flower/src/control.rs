@@ -1,15 +1,16 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Add, Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
-use crate::draw::Draw;
-use crate::rect::Rect;
 
+use crate::draw::Draw;
+use crate::Px;
+use crate::rect::Rect;
 
 // 控件存储。窗口也视作一个控件
 pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
@@ -18,7 +19,7 @@ pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=C
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
 static mut TOOL_ID_TAG: AtomicI32 = AtomicI32::new(-1);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ControlType {
     // 常规的控件
     Control,
@@ -26,7 +27,7 @@ pub enum ControlType {
     Tool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Position {
     // 绝对坐标，左边和顶部根据window窗口的对应位置进行计算
     Absolute,
@@ -45,8 +46,8 @@ pub struct ControlState {
     /// 组件类型
     pub(crate) control_type: ControlType,
     /// 父级组件的位置
-    pub(crate) base_left: i32,
-    pub(crate) base_top: i32,
+    pub(crate) base_left: Px,
+    pub(crate) base_top: Px,
     /// 位置计算方式
     pub(crate) position: Position,
     pub(crate) rect: Rect,
@@ -65,7 +66,7 @@ pub struct ControlState {
 }
 
 impl ControlState {
-    pub fn create(name: String, class: Vec<String>, control_type: ControlType, base_left: i32, base_top: i32) -> ControlState {
+    pub fn create(name: String, class: Vec<String>, control_type: ControlType) -> ControlState {
         let id = unsafe {
             match control_type {
                 ControlType::Control => { CONTROL_ID_TAG.fetch_add(1, Ordering::Release) }
@@ -73,16 +74,16 @@ impl ControlState {
             }
         };
         debug!("control_state Register id: {}",id);
-        ControlState {
+        Self {
             id,
             name,
             parent_id: 0,
             class,
             control_type,
-            base_left,
-            base_top,
+            base_left: 0 as Px,
+            base_top: 0 as Px,
             position: Position::Relative,
-            rect: Rect::new(0.,0.,50.,20.),
+            rect: Rect::new(0., 0., 50., 20.),
             disable: false,
             visual: true,
             is_mouse_in: false,
@@ -92,16 +93,46 @@ impl ControlState {
         }
     }
 
-    pub fn add_child(&mut self, child: impl Control<Target=ControlState>) {
+    pub fn add_child(&mut self, mut child: impl Control<Target=ControlState>) {
+        let base_top = self.base_left + self.width - child.rect().left;
+        let base_left = self.base_top + self.height - child.rect().top;
+        child.set_base_top(base_top);
+        child.set_base_left(base_left);
         self.child.push(Box::new(child));
     }
 
-    pub fn find_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
-        let this_index = self.child.binary_search_by(|c| c.id.cmp(id)).unwrap();
-        return Some(&mut self.child[this_index]);
+
+    pub fn in_scope(&self, x: i32, y: i32) -> bool {
+        let mut s = String::new();
+
+        s = s.add(&*format!("进入{}左边({}<={})\t", if self.base_left <= x as Px { "符合" } else { "不符合" }, self.base_left, x));
+        s= s.add(&*format!("进入{}右边({}>={})\t", if self.base_left + self.width >= x as Px { "符合" } else { "不符合" }, self.base_left + self.width, x));
+
+        s = s.add(&*format!("进入{}上边({}<={})\t",if self.base_top <= y as Px { "符合" } else { "不符合" }, self.base_top, y as Px));
+
+        s = s.add(&*format!("进入{}下边({}>={})\t", if self.base_top + self.height >= y as Px { "符合" } else { "不符合" },self.base_top + self.height, y as Px));
+
+        debug!("{}",s);
+        return  self.base_left <= x as Px &&
+            self.base_left + self.width >= x as Px &&
+            self.base_top <= y as Px &&
+            self.base_top + self.height >= y as Px
+        ;
     }
 
-    pub fn find_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: &i32) -> Option<&mut T> {
+    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        match self.child.binary_search_by(|c| c.id.cmp(id)) {
+            Ok(this_index) => {
+                if self.child.len() - 1 < this_index {
+                    return None;
+                }
+                return Some(&mut self.child[this_index]);
+            }
+            Err(_) => { None }
+        }
+    }
+
+    pub fn search_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: &i32) -> Option<&mut T> {
         let this_index = self.child.binary_search_by(|c| c.id.cmp(id)).unwrap();
         return self.child[this_index].downcast_mut();
     }
@@ -119,10 +150,10 @@ impl ControlState {
     pub fn control_type(&self) -> &ControlType {
         &self.control_type
     }
-    pub fn base_left(&self) -> i32 {
+    pub fn base_left(&self) -> Px {
         self.base_left
     }
-    pub fn base_top(&self) -> i32 {
+    pub fn base_top(&self) -> Px {
         self.base_top
     }
     pub fn rect(&self) -> &Rect {
@@ -159,10 +190,10 @@ impl ControlState {
     pub fn set_control_type(&mut self, control_type: ControlType) {
         self.control_type = control_type;
     }
-    pub fn set_base_left(&mut self, base_left: i32) {
+    pub fn set_base_left(&mut self, base_left: Px) {
         self.base_left = base_left;
     }
-    pub fn set_base_top(&mut self, base_top: i32) {
+    pub fn set_base_top(&mut self, base_top: Px) {
         self.base_top = base_top;
     }
     pub fn set_rect(&mut self, rect: Rect) {
@@ -209,7 +240,6 @@ impl DerefMut for ControlState {
     }
 }
 
-
 pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// 获取组件的类型
     fn get_control_type(&self) -> ControlType {
@@ -222,17 +252,23 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// (i32, u8, i32) z-index,层级,组件id
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
-    fn find_event_control_id(&self, x: i32, y: i32) -> Option<(u8, i32)> {
+    fn find_event_control_id(&self, level: u8, x: i32, y: i32) -> Option<(u8, i32)> {
+        debug!("归入");
         if !self.visual {
             return None;
         }
-        let mut self_level = (0, self.id);
+        let mut self_level = (level, self.id);
+        //先看看指针在不在当前控件范围内
+        if !self.in_scope(x, y) {
+            return None;
+        }
         for child in &self.child {
             // 不可视的控件，其子控件也不会绘制
             if !child.visual {
                 continue;
             }
-            if let Some(child_level) = child.find_event_control_id(x, y) {
+            // 在的话，可以去看看是否在子控件里
+            if let Some(child_level) = child.find_event_control_id(level + 1, x, y) {
                 // 如果子控件的层级更高，那就用子控件
                 if self_level.0 < child_level.0 {
                     self_level = child_level;

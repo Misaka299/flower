@@ -28,15 +28,19 @@ impl Draw {
     pub fn rect(&mut self, rect: &Rect, color: &Color) {
         unsafe {
             let vertex_shader_source = r#"const vec2 verts[4] = vec2[4](
-                vec2(0.0f, 1.0f),
-                vec2(1.0f, 1.0f),
-                vec2(1.0f, 0.0f),
-                vec2(0.0f, 0.0f)
+                // vec2(0.0f, 0.0f),
+                // vec2(0.0f, 1.0f),
+                // vec2(1.0f, 1.0f),
+                // vec2(1.0f, 0.0f)
+                vec2(-0.5f, 0.5f),
+                vec2(0.5f, 1.5f),
+                vec2(0.5f, -0.5f),
+                vec2(-0.5f, -0.5f)
             );
             out vec2 vert;
             void main() {
                 vert = verts[gl_VertexID];
-                gl_Position = vec4(vert - 0.5, 0.0, 1.0);
+                gl_Position = vec4(vert + 0.5, 0.0f, 1.0f);
             }"#;
             let fragment_shader_source =
                 "".to_string()+ r#"precision mediump float;
@@ -51,12 +55,12 @@ impl Draw {
             //     color = vec4(0.0, 0.74902, 1.0, 1.0);
             // }"#.to_string();
 
-            println!("-----------{}", fragment_shader_source);
+            // println!("-----------{}", fragment_shader_source);
 
             self.make_use_program(vertex_shader_source, fragment_shader_source.as_str());
 
             self.gl.clear(glow::COLOR_BUFFER_BIT);
-            self.gl.draw_arrays(glow::LINES, 0, 4);
+            self.gl.draw_arrays(glow::LINE_LOOP, 0, 4);
         }
     }
 
@@ -86,7 +90,7 @@ impl Draw {
             //     color = vec4(0.0, 0.74902, 1.0, 1.0);
             // }"#.to_string();
 
-            println!("-----------{}", fragment_shader_source);
+            // println!("-----------{}", fragment_shader_source);
 
             self.make_use_program(vertex_shader_source, fragment_shader_source.as_str());
 
