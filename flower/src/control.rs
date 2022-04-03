@@ -94,8 +94,8 @@ impl ControlState {
     }
 
     pub fn add_child(&mut self, mut child: impl Control<Target=ControlState>) {
-        let base_top = self.base_left + self.width - child.rect().left;
-        let base_left = self.base_top + self.height - child.rect().top;
+        let base_top = self.left;
+        let base_left = self.top;
         child.set_base_top(base_top);
         child.set_base_left(base_left);
         self.child.push(Box::new(child));
@@ -113,10 +113,10 @@ impl ControlState {
         s = s.add(&*format!("进入{}下边({}>={})\t", if self.base_top + self.height >= y as Px { "符合" } else { "不符合" },self.base_top + self.height, y as Px));
 
         debug!("{}",s);
-        return  self.base_left <= x as Px &&
-            self.base_left + self.width >= x as Px &&
-            self.base_top <= y as Px &&
-            self.base_top + self.height >= y as Px
+        return  self.base_left + self.left <= x as Px &&
+            self.base_left + self.left + self.width >= x as Px &&
+            self.base_top + self.top <= y as Px &&
+            self.base_top + self.top + self.height >= y as Px
         ;
     }
 

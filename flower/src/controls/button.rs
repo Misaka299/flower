@@ -6,6 +6,7 @@ use log::debug;
 use crate::color::Color;
 use crate::control::{Control, ControlState, ControlType};
 use crate::draw::Draw;
+use crate::rect::Rect;
 
 pub struct Button {
     control_state: ControlState,
@@ -50,8 +51,8 @@ impl DerefMut for Button {
 
 impl Control for Button {
     fn on_draw(&mut self, gl: &mut Draw) {
-        println!("button[{}] draw",self.id());
-        gl.create_canvas(&self.rect);
+        println!("button[{}] draw rect {:?}",self.id(),&self.rect);
+        gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
         // gl.rect(&self.rect, &Color::rgb(0,191,255));
         println!("button[{}] focus {}",self.id(), self.focus);
         if self.focus {
