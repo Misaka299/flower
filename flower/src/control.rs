@@ -103,16 +103,7 @@ impl ControlState {
 
 
     pub fn in_scope(&self, x: i32, y: i32) -> bool {
-        let mut s = String::new();
-
-        s = s.add(&*format!("进入{}左边({}<={})\t", if self.base_left <= x as Px { "符合" } else { "不符合" }, self.base_left, x));
-        s= s.add(&*format!("进入{}右边({}>={})\t", if self.base_left + self.width >= x as Px { "符合" } else { "不符合" }, self.base_left + self.width, x));
-
-        s = s.add(&*format!("进入{}上边({}<={})\t",if self.base_top <= y as Px { "符合" } else { "不符合" }, self.base_top, y as Px));
-
-        s = s.add(&*format!("进入{}下边({}>={})\t", if self.base_top + self.height >= y as Px { "符合" } else { "不符合" },self.base_top + self.height, y as Px));
-
-        debug!("{}",s);
+        debug!("x->{} y->{}",x,y);
         return  self.base_left + self.left <= x as Px &&
             self.base_left + self.left + self.width >= x as Px &&
             self.base_top + self.top <= y as Px &&

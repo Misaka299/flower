@@ -53,12 +53,11 @@ impl Control for Button {
     fn on_draw(&mut self, gl: &mut Draw) {
         println!("button[{}] draw rect {:?}",self.id(),&self.rect);
         gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
-        // gl.rect(&self.rect, &Color::rgb(0,191,255));
         println!("button[{}] focus {}",self.id(), self.focus);
         if self.focus {
             gl.fill(&self.rect, &Color::rgb(0, 191, 255));
         } else {
-            gl.fill(&self.rect, &Color::rgb(255, 191, 255));
+            gl.rect(&self.rect, &Color::rgb(255, 191, 255));
         }
     }
 }

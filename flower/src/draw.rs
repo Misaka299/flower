@@ -3,16 +3,19 @@ use std::ops::{Deref, DerefMut};
 use glow::{Context, HasContext};
 
 use crate::color::Color;
+use crate::Px;
 use crate::rect::Rect;
 
 pub struct Draw {
     gl: Context,
+    window_height: Px,
 }
 
 impl Draw {
-    pub fn new(gl: Context) -> Draw {
+    pub fn new(gl: Context,window_height:Px) -> Draw {
         Self {
             gl,
+            window_height
         }
     }
 }
@@ -21,41 +24,29 @@ impl Draw {
     /// 使用
     ///
     pub fn create_canvas(&self, rect: &Rect) {
-        println!("{:?}", rect);
-        unsafe { self.viewport(rect.left as i32, rect.top as i32, rect.width as i32, rect.height as i32); }
+        println!("view -> {:?}", rect);
+        unsafe { self.viewport(rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32); }
     }
 
     pub fn rect(&mut self, rect: &Rect, color: &Color) {
         unsafe {
             let vertex_shader_source = r#"const vec2 verts[4] = vec2[4](
-                // vec2(0.0f, 0.0f),
-                // vec2(0.0f, 1.0f),
-                // vec2(1.0f, 1.0f),
-                // vec2(1.0f, 0.0f)
-                vec2(-0.5f, 0.5f),
-                vec2(0.5f, 1.5f),
-                vec2(0.5f, -0.5f),
-                vec2(-0.5f, -0.5f)
+                vec2(-1.0f, 1.0f),
+                vec2(1.0f, 1.0f),
+                vec2(1.0f, -0.9999f),
+                vec2(-0.99999f, -1.0f)
             );
             out vec2 vert;
             void main() {
                 vert = verts[gl_VertexID];
-                gl_Position = vec4(vert + 0.5, 0.0f, 1.0f);
+                gl_Position = vec4(vert, 0.0f, 1.0f);
             }"#;
             let fragment_shader_source =
-                "".to_string()+ r#"precision mediump float;
+                "".to_string() + r#"precision mediump float;
             in vec2 vert;
             out vec4 color;
             void main() {
                 color = "# + &color.rgba_gl_vec4() + &"}";
-            //     r#"precision mediump float;
-            // in vec2 vert;
-            // out vec4 color;
-            // void main() {
-            //     color = vec4(0.0, 0.74902, 1.0, 1.0);
-            // }"#.to_string();
-
-            // println!("-----------{}", fragment_shader_source);
 
             self.make_use_program(vertex_shader_source, fragment_shader_source.as_str());
 
@@ -67,18 +58,18 @@ impl Draw {
     pub fn fill(&mut self, rect: &Rect, color: &Color) {
         unsafe {
             let vertex_shader_source = r#"const vec2 verts[4] = vec2[4](
-                vec2(0.0f, 1.0f),
+                vec2(-1.0f, 1.0f),
                 vec2(1.0f, 1.0f),
-                vec2(1.0f, 0.0f),
-                vec2(0.0f, 0.0f)
+                vec2(1.0f, -0.9999f),
+                vec2(-0.99999f, -1.0f)
             );
             out vec2 vert;
             void main() {
                 vert = verts[gl_VertexID];
-                gl_Position = vec4(vert - 0.5, 0.0, 1.0);
+                gl_Position = vec4(vert , 0.0, 1.0);
             }"#;
             let fragment_shader_source =
-               "".to_string()+ r#"precision mediump float;
+                "".to_string() + r#"precision mediump float;
             in vec2 vert;
             out vec4 color;
             void main() {

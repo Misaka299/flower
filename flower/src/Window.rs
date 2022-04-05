@@ -44,10 +44,11 @@ impl Window {
             println!("{:?}", &shader_version);
             let id = window.window().id();
             let state_id = state.id;
+            let height = state.height;
             WINDOWS.push((state_id.clone(), Window {
                 title,
                 control_state: state,
-                gl:Draw::new(gl),
+                gl:Draw::new(gl,height),
                 shader_version,
                 window: Takeable::new(window),
             }));
