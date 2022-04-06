@@ -111,6 +111,7 @@ impl Control for Window {
                 self.window = Takeable::new(wrapper);
             }
             let gl = &self.gl;
+            gl.create_canvas(self.rect());
             // println!("draw window_id : {:?} {:?}",self.id(), &gl.version());
             let vertex_array = gl
                 .create_vertex_array()
@@ -173,7 +174,8 @@ impl Control for Window {
 
             gl.clear(glow::COLOR_BUFFER_BIT);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
-            gl.create_canvas(self.rect());
+            gl.flush();
+            gl.finish();
             debug!("window[{}] draw",self.id());
 
             // println!("error {}",gl.get_error());

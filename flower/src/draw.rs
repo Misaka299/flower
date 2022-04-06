@@ -31,7 +31,7 @@ impl Draw {
     pub fn rect(&mut self, rect: &Rect, color: &Color) {
         unsafe {
             let vertex_shader_source = r#"const vec2 verts[4] = vec2[4](
-                vec2(-1.0f, 1.0f),
+                vec2(-1.0f, 0.9999f),
                 vec2(1.0f, 1.0f),
                 vec2(1.0f, -0.9999f),
                 vec2(-0.99999f, -1.0f)
@@ -50,7 +50,7 @@ impl Draw {
 
             self.make_use_program(vertex_shader_source, fragment_shader_source.as_str());
 
-            self.gl.clear(glow::COLOR_BUFFER_BIT);
+            // self.gl.clear(glow::COLOR_BUFFER_BIT);
             self.gl.draw_arrays(glow::LINE_LOOP, 0, 4);
         }
     }
@@ -85,7 +85,7 @@ impl Draw {
 
             self.make_use_program(vertex_shader_source, fragment_shader_source.as_str());
 
-            self.gl.clear(glow::COLOR_BUFFER_BIT);
+            // self.gl.clear(glow::COLOR_BUFFER_BIT);
             self.gl.draw_arrays(glow::QUADS, 0, 4);
         }
     }
