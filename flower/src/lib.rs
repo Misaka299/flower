@@ -5,7 +5,7 @@ use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
-use crate::control::Control;
+use crate::control::{Control, ControlState};
 use crate::window::Window;
 
 pub mod window;
@@ -19,7 +19,7 @@ pub mod color;
 
 pub type Px = f64;
 
-pub static mut WINDOWS: Lazy<Vec<(i32, Window)>> = Lazy::new(|| Vec::new());
+pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> = Lazy::new(|| Vec::new());
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
 pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
@@ -59,21 +59,36 @@ impl<T> Flower<T> {
                             if let Some(option) = x.find_event_control_id(0, position.x as i32, position.y as i32) {
                                 debug!("cursor moved - find result {:?}",option);
                                 // if option.1 != self.focus_id {
-                                    debug!("update focus");
-                                    if let Some(control) = x.search_control_by_id(&self.focus_id) {
-                                        debug!("success search control id is {}",control.id());
-                                        control.focus = false;
-                                    }
-                                    if let Some(control) = x.search_control_by_id(&option.1) {
-                                        debug!("success search control id is {}",control.id());
-                                        control.set_focus(true);
-                                        debug!("sss{}" ,control.focus);
-                                        self.focus_id = control.id;
-                                    }
-                                    debug!("re draw");
-                                    x.draw();
-                                    x.window.swap_buffers().unwrap();
+                                debug!("update focus");
+                                if let Some(control) = x.search_control_by_id(&self.focus_id) {
+                                    debug!("success search control id is {}",control.id());
+                                    control.focus = false;
+                                }
+                                if let Some(control) = x.search_control_by_id(&option.1) {
+                                    debug!("success search control id is {}",control.id());
+                                    control.set_focus(true);
+                                    debug!("sss{}" ,control.focus);
+                                    self.focus_id = control.id;
+                                }
+                                debug!("re draw");
+                                x.draw();
+                                x.window.swap_buffers().unwrap();
                                 // }
+                            }
+                        }
+                        WindowEvent::Focused(f) => {}
+                        WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
+                            debug!("Check the keyboard to change focus");
+                            let x = get_window_by_window_id(&window_id);
+                            if let Some(id) = x.find_focus_control(){
+                                let control = x.search_control_by_id(&id).unwrap();
+                                control.focus = false;
+                            }
+                            if let Some(id) = x.find_next_focus_control() {
+                                let control = x.search_control_by_id(&id).unwrap();
+                                control.focus = false;
+                                x.draw();
+                                x.window.swap_buffers().unwrap();
                             }
                         }
                         _ => (),
@@ -117,6 +132,14 @@ pub fn get_window_by_window_id(window_id: &WindowId) -> &mut Window {
 
 /// 加上 & 就可以编译了
 pub fn get_window_by_id(id: &i32) -> &mut Window {
+    unsafe {
+        let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
+        WINDOWS[this_index].1.downcast_mut::<Window>().unwrap()
+    }
+}
+
+/// 加上 & 就可以编译了
+pub fn get_control_by_id(id: &i32) -> &mut Box<dyn Control<Target=ControlState>> {
     unsafe {
         let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
         &mut WINDOWS[this_index].1

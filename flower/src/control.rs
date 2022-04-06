@@ -1,19 +1,12 @@
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
-use std::ops::{Add, Deref, DerefMut};
-use std::sync::Arc;
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
-use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
 
 use crate::draw::Draw;
 use crate::Px;
 use crate::rect::Rect;
-
-// 控件存储。窗口也视作一个控件
-pub static mut CONTROL_MAP: Lazy<FxHashMap<i32, Arc<RefCell<dyn Control<Target=ControlState>>>>> = Lazy::new(|| FxHashMap::default());
 
 // Why does setting zero make Windows invisible
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
@@ -58,7 +51,9 @@ pub struct ControlState {
     /// 是否可视
     pub(crate) visual: bool,
     // 是否鼠标进入
-    pub(crate) is_mouse_in: bool,
+    pub(crate) active: bool,
+    // 焦点顺序，默认使用控件id
+    pub(crate) focus_order: i32,
     // 是否焦点
     pub(crate) focus: bool,
     // 是否禁止捕获焦点
@@ -66,7 +61,7 @@ pub struct ControlState {
 }
 
 impl ControlState {
-    pub fn create(name: String, class: Vec<String>, control_type: ControlType) -> ControlState {
+    pub fn create(name: String, non_focus: bool, control_type: ControlType) -> ControlState {
         let id = unsafe {
             match control_type {
                 ControlType::Control => { CONTROL_ID_TAG.fetch_add(1, Ordering::Release) }
@@ -78,7 +73,7 @@ impl ControlState {
             id,
             name,
             parent_id: 0,
-            class,
+            class: vec![],
             control_type,
             base_left: 0 as Px,
             base_top: 0 as Px,
@@ -86,9 +81,10 @@ impl ControlState {
             rect: Rect::new(0., 0., 50., 20.),
             disable: false,
             visual: true,
-            is_mouse_in: false,
+            active: false,
+            focus_order: id,
             focus: false,
-            non_focus: false,
+            non_focus,
             child: vec![],
         }
     }
@@ -101,10 +97,9 @@ impl ControlState {
         self.child.push(Box::new(child));
     }
 
-
     pub fn in_scope(&self, x: i32, y: i32) -> bool {
         debug!("x->{} y->{}",x,y);
-        return  self.base_left + self.left <= x as Px &&
+        return self.base_left + self.left <= x as Px &&
             self.base_left + self.left + self.width >= x as Px &&
             self.base_top + self.top <= y as Px &&
             self.base_top + self.top + self.height >= y as Px
@@ -119,15 +114,106 @@ impl ControlState {
                 }
                 return Some(&mut self.child[this_index]);
             }
-            Err(_) => { None }
+            _ => { None }
         }
     }
 
-    pub fn search_control_by_id_test<T: Control<Target=ControlState>>(&mut self, id: &i32) -> Option<&mut T> {
-        let this_index = self.child.binary_search_by(|c| c.id.cmp(id)).unwrap();
-        return self.child[this_index].downcast_mut();
+    pub fn search_control_by_focus_order(&mut self, order: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        match self.child.binary_search_by(|c| c.focus_order.cmp(order)) {
+            Ok(this_index) => {
+                if self.child.len() - 1 < this_index {
+                    return None;
+                }
+                return Some(&mut self.child[this_index]);
+            }
+            _ => { None }
+        }
     }
 
+    /// Find controls in this control and controls under this control whose focus is true
+    pub fn find_focus_control(&self) -> Option<i32> {
+        if self.focus { return Some(self.id); }
+        for x in &self.child {
+            return x.find_focus_control();
+        }
+        None
+    }
+
+    pub(crate) fn find_previous_focus_control(&mut self) -> Option<i32> {
+        // If it's the first one, search for the last one
+        let mut loop_index = if self.focus_order == 0 {
+            self.find_max_order_focus()
+        } else {
+            self.focus_order
+        };
+
+        if loop_index == self.focus_order {
+            return Some(self.id);
+        }
+        loop {
+            if loop_index == loop_index { return None; }
+            // find previous one
+            loop_index = loop_index - 1;
+            match self.search_control_by_focus_order(&loop_index) {
+                // The previous one may prohibit focus, so skip it
+                None => { continue; }
+                Some(control) => {
+                    return Some(control.id);
+                }
+            }
+        }
+    }
+
+    fn find_max_order_focus(&self) -> i32 {
+        if self.non_focus == true { return 0; }
+        let mut max = self.focus_order;
+        for ref mut x in &self.child {
+            let i = x.find_max_order_focus();
+            if i > max {
+                max = i;
+            }
+        }
+        max
+    }
+
+    fn find_min_order_focus(&self) -> i32 {
+        if self.non_focus == true { return 0; }
+        let mut min = self.focus_order;
+        for x in &self.child {
+            let i = x.find_max_order_focus();
+            if i < min {
+                min = i;
+            }
+        }
+        min
+    }
+
+    pub(crate) fn find_next_focus_control(&mut self) -> Option<i32> {
+        // If it's the first one, search for the last one
+        let mut loop_index = if self.focus_order == 0 {
+            self.find_min_order_focus()
+        } else {
+            self.focus_order
+        };
+
+        if loop_index == self.focus_order {
+            return Some(self.id);
+        }
+        loop {
+            if loop_index == loop_index {
+                return None;
+            }
+            // find previous one
+            loop_index = loop_index + 1;
+            match self.search_control_by_focus_order(&loop_index) {
+                // The previous one may prohibit focus, so skip it
+                None => { continue; }
+                Some(control) => {
+                    return Some(control.id);
+                }
+            }
+        }
+    }
 
     pub fn id(&self) -> i32 {
         self.id
@@ -159,8 +245,8 @@ impl ControlState {
     pub fn visual(&self) -> bool {
         self.visual
     }
-    pub fn is_mouse_in(&self) -> bool {
-        self.is_mouse_in
+    pub fn active(&self) -> bool {
+        self.active
     }
     pub fn focus(&self) -> bool {
         self.focus
@@ -199,8 +285,8 @@ impl ControlState {
     pub fn set_visual(&mut self, visual: bool) {
         self.visual = visual;
     }
-    pub fn set_is_mouse_in(&mut self, is_mouse_in: bool) {
-        self.is_mouse_in = is_mouse_in;
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
     }
     pub fn set_focus(&mut self, focus: bool) {
         self.focus = focus;

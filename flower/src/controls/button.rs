@@ -17,7 +17,7 @@ pub struct Button {
 impl Button {
     pub fn from(name: String, text: String) -> Button {
         Button {
-            control_state: ControlState::create(name, vec![], ControlType::Control),
+            control_state: ControlState::create(name, false, ControlType::Control),
             text,
             on_click: None,
         }

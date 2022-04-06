@@ -1,15 +1,15 @@
 use std::ops::{Deref, DerefMut};
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
 
 use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::event_loop::EventLoop;
 use log::debug;
 use takeable_option::Takeable;
-use crate::control::{Control, ControlState, ControlType};
-use crate::{Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
-use crate::draw::Draw;
 
+use crate::{get_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
+use crate::control::{Control, ControlState, ControlType};
+use crate::draw::Draw;
 
 pub struct Window {
     title: String,
@@ -25,9 +25,10 @@ impl Window {
     }
 
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
-        let mut state = ControlState::create(name.clone(), vec![], control_type);
+        let mut state = ControlState::create(name.clone(), false, control_type);
         state.width = 1024 as Px;
         state.height = 768 as Px;
+        state.focus = true;
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
             .with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
@@ -45,19 +46,26 @@ impl Window {
             let id = window.window().id();
             let state_id = state.id;
             let height = state.height;
-            WINDOWS.push((state_id.clone(), Window {
+            WINDOWS.push((state_id.clone(), Box::new(Window {
                 title,
                 control_state: state,
-                gl:Draw::new(gl,height),
+                gl: Draw::new(gl, height),
                 shader_version,
                 window: Takeable::new(window),
-            }));
+            })));
             WINDOW_ID_MAP.insert(id, state_id);
-            WINDOW_NAME_MAP.insert(name.clone(),state_id);
+            WINDOW_NAME_MAP.insert(name.clone(), state_id);
             // get_window_by_id(state_id)
             let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&state_id)).unwrap();
-            &mut WINDOWS[this_index].1
+            WINDOWS[this_index].1.downcast_mut::<Window>().unwrap()
         }
+    }
+
+    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        if self.id == *id {
+            return Some(get_control_by_id(id));
+        }
+        self.search_control_by_id(id)
     }
 
 
