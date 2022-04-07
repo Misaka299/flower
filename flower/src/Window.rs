@@ -1,3 +1,4 @@
+use std::arch::x86_64::_popcnt32;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
@@ -7,7 +8,7 @@ use glutin::event_loop::EventLoop;
 use log::debug;
 use takeable_option::Takeable;
 
-use crate::{get_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
+use crate::{get_window_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::control::{Control, ControlState, ControlType};
 use crate::draw::Draw;
 
@@ -16,7 +17,8 @@ pub struct Window {
     control_state: ControlState,
     gl: Draw,
     shader_version: String,
-    pub(crate) window: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
+    pub(crate) context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
+    pub(crate) current_focus_order:i32,
 }
 
 impl Window {
@@ -46,28 +48,20 @@ impl Window {
             let id = window.window().id();
             let state_id = state.id;
             let height = state.height;
-            WINDOWS.push((state_id.clone(), Box::new(Window {
+            WINDOWS.push((state_id, Box::new(Window {
                 title,
                 control_state: state,
                 gl: Draw::new(gl, height),
                 shader_version,
-                window: Takeable::new(window),
+                context_wrapper: Takeable::new(window),
+                current_focus_order: state_id,
             })));
             WINDOW_ID_MAP.insert(id, state_id);
             WINDOW_NAME_MAP.insert(name.clone(), state_id);
-            // get_window_by_id(state_id)
             let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&state_id)).unwrap();
             WINDOWS[this_index].1.downcast_mut::<Window>().unwrap()
         }
     }
-
-    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
-        if self.id == *id {
-            return Some(get_control_by_id(id));
-        }
-        self.search_control_by_id(id)
-    }
-
 
     pub fn title(&self) -> &str {
         &self.title
@@ -82,7 +76,7 @@ impl Window {
         &self.shader_version
     }
     pub fn window(&self) -> &Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>> {
-        &self.window
+        &self.context_wrapper
     }
 }
 
@@ -94,6 +88,7 @@ impl Deref for Window {
     }
 }
 
+// Control packaging method
 impl Window {
     // 发起绘制
     pub fn draw(&mut self) {
@@ -101,6 +96,27 @@ impl Window {
         for x in self.control_state.child.iter_mut() {
             x.draw(&mut self.gl);
         }
+    }
+
+    pub fn to_previous_focus(){
+
+    }
+
+    ///
+    /// Search Control includes Windows
+    ///
+    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        if self.id == *id {
+            return Some(get_window_control_by_id!(&id));
+        }
+        self.control_state.search_control_by_id(id)
+    }
+
+    pub fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        if self.focus_order == order {
+            return Some(get_window_control_by_id!(&self.id));
+        }
+        self.control_state.search_control_by_focus_order(order)
     }
 }
 
@@ -113,10 +129,10 @@ impl DerefMut for Window {
 impl Control for Window {
     fn on_draw(&mut self, gl: &mut Draw) {
         unsafe {
-            if !self.window.is_current() {
-                let wrapper = Takeable::take(&mut self.window);
+            if !self.context_wrapper.is_current() {
+                let wrapper = Takeable::take(&mut self.context_wrapper);
                 let wrapper = wrapper.make_current().expect("make current error!");
-                self.window = Takeable::new(wrapper);
+                self.context_wrapper = Takeable::new(wrapper);
             }
             let gl = &self.gl;
             gl.create_canvas(self.rect());

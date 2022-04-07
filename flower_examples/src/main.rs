@@ -19,11 +19,11 @@ fn main() {
     button.width = 400.;
     win1.add_child(button);
 
-    Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
-    Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
-    Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
-    Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
-    Window::create(flower.el(), "windwos 6".to_string(), "windows 6".to_string());
+    // Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    // Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
+    // Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
+    // Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
+    // Window::create(flower.el(), "windwos 6".to_string(), "windows 6".to_string());
 
 
     flower.open();

@@ -118,8 +118,8 @@ impl ControlState {
         }
     }
 
-    pub fn search_control_by_focus_order(&mut self, order: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
-        match self.child.binary_search_by(|c| c.focus_order.cmp(order)) {
+    pub fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+        match self.child.binary_search_by(|c| c.focus_order.cmp(&order)) {
             Ok(this_index) => {
                 if self.child.len() - 1 < this_index {
                     return None;
@@ -139,22 +139,29 @@ impl ControlState {
         None
     }
 
-    pub(crate) fn find_previous_focus_control(&mut self) -> Option<i32> {
-        // If it's the first one, search for the last one
-        let mut loop_index = if self.focus_order == 0 {
-            self.find_max_order_focus()
-        } else {
-            self.focus_order
-        };
+    pub(crate) fn find_previous_focus_control(&mut self, current_focus_order: i32) -> Option<i32> {
+        let mut loop_index = current_focus_order;
+        let min = self.find_min_order_focus();
 
-        if loop_index == self.focus_order {
-            return Some(self.id);
-        }
         loop {
-            if loop_index == loop_index { return None; }
-            // find previous one
-            loop_index = loop_index - 1;
-            match self.search_control_by_focus_order(&loop_index) {
+            if loop_index <= min {
+                // If it's the last one, search for the first one
+                loop_index = self.find_max_order_focus();
+            } else {
+                // find previous one
+                loop_index = loop_index - 1;
+            }
+
+            // check back to the origin
+            if loop_index == current_focus_order {
+                return None;
+            }
+            // check self
+            if loop_index == self.focus_order {
+                return Some(self.id);
+            }
+            // check child
+            match self.search_control_by_focus_order(loop_index) {
                 // The previous one may prohibit focus, so skip it
                 None => { continue; }
                 Some(control) => {
@@ -188,25 +195,30 @@ impl ControlState {
         min
     }
 
-    pub(crate) fn find_next_focus_control(&mut self) -> Option<i32> {
-        // If it's the first one, search for the last one
-        let mut loop_index = if self.focus_order == 0 {
-            self.find_min_order_focus()
-        } else {
-            self.focus_order
-        };
+    pub(crate) fn find_next_focus_control(&mut self, current_focus_order: i32) -> Option<i32> {
+        let mut loop_index = current_focus_order;
+        let max = self.find_max_order_focus();
 
-        if loop_index == self.focus_order {
-            return Some(self.id);
-        }
         loop {
-            if loop_index == loop_index {
+            if loop_index >= max {
+                // if it's the last one, search for the first one
+                loop_index = self.find_min_order_focus();
+            } else {
+                // find previous one
+                loop_index = loop_index + 1;
+            }
+
+            // check back to the origin
+            if loop_index == current_focus_order {
                 return None;
             }
-            // find previous one
-            loop_index = loop_index + 1;
-            match self.search_control_by_focus_order(&loop_index) {
-                // The previous one may prohibit focus, so skip it
+            // check self
+            if loop_index == self.focus_order {
+                return Some(self.id);
+            }
+            // check child
+            match self.search_control_by_focus_order(loop_index) {
+                // The next one may prohibit focus, so skip it
                 None => { continue; }
                 Some(control) => {
                     return Some(control.id);

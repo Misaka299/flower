@@ -1,4 +1,6 @@
 use glutin::event::WindowEvent;
+use glutin::event::ElementState::Pressed;
+use glutin::event::VirtualKeyCode::Tab;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
 use log::debug;
@@ -25,18 +27,17 @@ pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHa
 
 pub struct Flower<T: 'static> {
     el: EventLoop<T>,
-    focus_id: i32,
 }
 
 impl Flower<()> {
     pub fn new() -> Flower<()> {
-        Self { el: EventLoop::<()>::new(), focus_id: -1 }
+        Self { el: EventLoop::<()>::new() }
     }
 }
 
 impl<T> Flower<T> {
     pub fn with_user_event() -> Flower<T> {
-        Self { el: EventLoop::<T>::with_user_event(), focus_id: -1 }
+        Self { el: EventLoop::<T>::with_user_event() }
     }
 
     pub fn open(mut self) {
@@ -48,55 +49,74 @@ impl<T> Flower<T> {
                     glutin::event::Event::WindowEvent { event, window_id } => match event {
                         WindowEvent::Resized(physical_size) => {
                             let x = get_window_by_window_id(&window_id);
-                            x.window.resize(physical_size);
+                            x.context_wrapper.resize(physical_size);
                         }
                         WindowEvent::CloseRequested => {
                             remove_window_by_window_id(&window_id);
                         }
                         WindowEvent::CursorMoved { device_id, position, modifiers } => {
-                            debug!("cursor moved");
-                            let x = get_window_by_window_id(&window_id);
-                            if let Some(option) = x.find_event_control_id(0, position.x as i32, position.y as i32) {
-                                debug!("cursor moved - find result {:?}",option);
-                                // if option.1 != self.focus_id {
-                                debug!("update focus");
-                                if let Some(control) = x.search_control_by_id(&self.focus_id) {
-                                    debug!("success search control id is {}",control.id());
-                                    control.focus = false;
-                                }
-                                if let Some(control) = x.search_control_by_id(&option.1) {
-                                    debug!("success search control id is {}",control.id());
-                                    control.set_focus(true);
-                                    debug!("sss{}" ,control.focus);
-                                    self.focus_id = control.id;
-                                }
-                                debug!("re draw");
-                                x.draw();
-                                x.window.swap_buffers().unwrap();
-                                // }
-                            }
+                            // debug!("cursor moved");
+                            // let window = get_window_by_window_id(&window_id);
+                            // if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
+                            //     debug!("cursor moved - find result {:?}",option);
+                            //     if option.1 != window.focus_id {
+                            //         let focus_id = window.focus_id;
+                            //         debug!("update focus");
+                            //         if let Some(control) = window.search_control_by_id(&focus_id) {
+                            //             debug!("success search control id is {},set this control focus is false",control.id());
+                            //             control.focus = false;
+                            //         }
+                            //         if let Some(control) = window.search_control_by_id(&option.1) {
+                            //             debug!("success search control id is {},set this control focus is true",control.id());
+                            //             control.set_focus(true);
+                            //             window.focus_id = control.id;
+                            //         }
+                            //         debug!("re draw");
+                            //         window.draw();
+                            //         window.context_wrapper.swap_buffers().unwrap();
+                            //     }
+                            // }
                         }
                         WindowEvent::Focused(f) => {}
                         WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
-                            debug!("Check the keyboard to change focus");
-                            let x = get_window_by_window_id(&window_id);
-                            if let Some(id) = x.find_focus_control(){
-                                let control = x.search_control_by_id(&id).unwrap();
-                                control.focus = false;
+                            if input.state != Pressed || input.virtual_keycode != Some(Tab) {
+                                debug!("return");
+                                return;
                             }
-                            if let Some(id) = x.find_next_focus_control() {
-                                let control = x.search_control_by_id(&id).unwrap();
-                                control.focus = false;
-                                x.draw();
-                                x.window.swap_buffers().unwrap();
+                            let mut window = get_window_by_window_id(&window_id);
+                            let current_focus_order = window.current_focus_order;
+                            if input.modifiers.shift() {
+                                debug!("keyboard input to change focus to previous");
+                                window.to_previous_focus();
+                                if let Some(id) = window.find_previous_focus_control(current_focus_order) {
+                                    let next_control = window.search_control_by_id(&id).unwrap();
+                                    debug!("success search next_control id is {},set this control focus is true",next_control.id());
+                                    next_control.focus = true;
+                                    window.current_focus_order = next_control.focus_order;
+                                }
+                            } else {
+                                debug!("keyboard input to change focus to next");
+                                if let Some(id) = window.find_next_focus_control(current_focus_order) {
+                                    let next_control = window.search_control_by_id(&id).unwrap();
+                                    debug!("success search next_control id is {},set this control focus is true",next_control.id());
+                                    next_control.focus = true;
+                                    window.current_focus_order = next_control.focus_order;
+                                }
                             }
+                            debug!("keyboard input rest focus");
+                            if let Some(old_focus_control) = window.search_control_by_focus_order(current_focus_order) {
+                                debug!("success search focus_control id is {},set this control focus is false",old_focus_control.id());
+                                old_focus_control.focus = false;
+                            }
+                            window.draw();
+                            window.context_wrapper.swap_buffers().unwrap();
                         }
                         _ => (),
                     },
                     glutin::event::Event::RedrawRequested(window_id) => {
                         let x = get_window_by_window_id(&window_id);
                         x.draw();
-                        x.window.swap_buffers().unwrap();
+                        x.context_wrapper.swap_buffers().unwrap();
                     }
 
                     _ => (),
@@ -139,11 +159,18 @@ pub fn get_window_by_id(id: &i32) -> &mut Window {
 }
 
 /// 加上 & 就可以编译了
-pub fn get_control_by_id(id: &i32) -> &mut Box<dyn Control<Target=ControlState>> {
-    unsafe {
-        let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
+pub fn get_window_control_by_id(id: &i32) -> &mut Box<dyn Control<Target=ControlState>> {
+    get_window_control_by_id!(id)
+}
+
+#[macro_export]
+macro_rules! get_window_control_by_id {
+    ($id:expr) => {
+       unsafe {
+        let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp($id)).unwrap();
         &mut WINDOWS[this_index].1
-    }
+       }
+    };
 }
 
 //加上 & 就可以编译了
@@ -151,7 +178,7 @@ pub fn remove_window_by_id(id: &i32) -> String {
     unsafe {
         let win = get_window_by_id(id);
         // 删除window_id map数据
-        WINDOW_ID_MAP.remove(&win.window.window().id());
+        WINDOW_ID_MAP.remove(&win.context_wrapper.window().id());
         WINDOW_NAME_MAP.remove(win.name());
         let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap();
         WINDOWS.remove(vec_index);
