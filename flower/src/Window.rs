@@ -1,4 +1,3 @@
-use std::arch::x86_64::_popcnt32;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
@@ -18,7 +17,8 @@ pub struct Window {
     gl: Draw,
     shader_version: String,
     pub(crate) context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
-    pub(crate) current_focus_order:i32,
+    pub(crate) focus_order_id: i32,
+    pub(crate) active_id: i32,
 }
 
 impl Window {
@@ -54,7 +54,8 @@ impl Window {
                 gl: Draw::new(gl, height),
                 shader_version,
                 context_wrapper: Takeable::new(window),
-                current_focus_order: state_id,
+                focus_order_id: state_id,
+                active_id: state_id,
             })));
             WINDOW_ID_MAP.insert(id, state_id);
             WINDOW_NAME_MAP.insert(name.clone(), state_id);
@@ -96,10 +97,47 @@ impl Window {
         for x in self.control_state.child.iter_mut() {
             x.draw(&mut self.gl);
         }
+        self.context_wrapper.swap_buffers().unwrap();
     }
 
-    pub fn to_previous_focus(){
+    pub fn move_focus_to_specify_id_control(&mut self, id: i32) {
+        let current_focus_order = self.focus_order_id;
+        if let Some(control) = self.search_control_by_id(&id) {
+            debug!("success search next_control id is {},set this control focus is true",control.id());
+            control.focus = true;
+            self.focus_order_id = control.focus_order;
+        }
+        self.rest_old_control_focus(current_focus_order);
+    }
 
+    pub fn move_focus_to_previous_control(&mut self) {
+        let current_focus_order = self.focus_order_id;
+        if let Some(id) = self.find_previous_focus_control(current_focus_order) {
+            let next_control = self.search_control_by_id(&id).unwrap();
+            debug!("success search next_control id is {},set this control focus is true",next_control.id());
+            next_control.focus = true;
+            self.focus_order_id = next_control.focus_order;
+        }
+        self.rest_old_control_focus(current_focus_order);
+    }
+
+    pub fn move_focus_to_next_control(&mut self) {
+        let current_focus_order = self.focus_order_id;
+        if let Some(id) = self.find_next_focus_control(current_focus_order) {
+            let next_control = self.search_control_by_id(&id).unwrap();
+            debug!("success search next_control id is {},set this control focus is true",next_control.id());
+            next_control.focus = true;
+            self.focus_order_id = next_control.focus_order;
+        }
+        self.rest_old_control_focus(current_focus_order);
+    }
+
+    pub fn rest_old_control_focus(&mut self, old_focus_order: i32) {
+        debug!("keyboard input rest focus");
+        if let Some(old_focus_control) = self.search_control_by_focus_order(old_focus_order) {
+            debug!("success search focus_control id is {},set this control focus is false",old_focus_control.id());
+            old_focus_control.focus = false;
+        }
     }
 
     ///

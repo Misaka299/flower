@@ -4,7 +4,7 @@ use glow::HasContext;
 use log::debug;
 
 use crate::color::Color;
-use crate::control::{Control, ControlState, ControlType};
+use crate::control::{Control, ControlState, ControlType, InteractiveState};
 use crate::draw::Draw;
 use crate::rect::Rect;
 
@@ -54,10 +54,19 @@ impl Control for Button {
         println!("button[{}] draw rect {:?}",self.id(),&self.rect);
         gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
         println!("button[{}] focus {}",self.id(), self.focus);
-        if self.focus {
-            gl.fill(&self.rect, &Color::rgb(0, 191, 255));
-        } else {
-            gl.rect(&self.rect, &Color::rgb(255, 191, 255));
+        match self.interactive_state {
+            InteractiveState::Ordinary => {
+                gl.fill(&self.rect, &Color::from_hex_str("#FFF").unwrap());
+            }
+            InteractiveState::Active => {
+                gl.fill(&self.rect, &Color::from_hex_str("#efefef").unwrap());
+            }
+            InteractiveState::Pressed => {
+                gl.fill(&self.rect, &Color::from_hex_str("#3c4043").unwrap());
+            }
+            InteractiveState::Disable => {
+                gl.fill(&self.rect, &Color::from_hex_str("##eaeaea").unwrap());
+            }
         }
     }
 }

@@ -28,6 +28,14 @@ pub enum Position {
     Relative,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum InteractiveState {
+    Ordinary,
+    Active,
+    Pressed,
+    Disable,
+}
+
 pub struct ControlState {
     /// 组件id
     pub(crate) id: i32,
@@ -46,12 +54,10 @@ pub struct ControlState {
     pub(crate) rect: Rect,
     /// 子级组件
     pub(crate) child: Vec<Box<dyn Control<Target=ControlState>>>,
-    /// 是否禁用
-    pub(crate) disable: bool,
     /// 是否可视
     pub(crate) visual: bool,
-    // 是否鼠标进入
-    pub(crate) active: bool,
+    // 交互状态
+    pub(crate) interactive_state: InteractiveState,
     // 焦点顺序，默认使用控件id
     pub(crate) focus_order: i32,
     // 是否焦点
@@ -79,9 +85,8 @@ impl ControlState {
             base_top: 0 as Px,
             position: Position::Relative,
             rect: Rect::new(0., 0., 50., 20.),
-            disable: false,
             visual: true,
-            active: false,
+            interactive_state: InteractiveState::Ordinary,
             focus_order: id,
             focus: false,
             non_focus,
@@ -252,13 +257,19 @@ impl ControlState {
         &self.child
     }
     pub fn disable(&self) -> bool {
-        self.disable
+        match self.interactive_state {
+            InteractiveState::Disable => { true }
+            _ => { false }
+        }
     }
     pub fn visual(&self) -> bool {
         self.visual
     }
     pub fn active(&self) -> bool {
-        self.active
+        match self.interactive_state {
+            InteractiveState::Active => { true }
+            _ => { false }
+        }
     }
     pub fn focus(&self) -> bool {
         self.focus
@@ -292,13 +303,21 @@ impl ControlState {
         self.child = child;
     }
     pub fn set_disable(&mut self, disable: bool) {
-        self.disable = disable;
+        self.interactive_state = if disable {
+            InteractiveState::Ordinary
+        } else {
+            InteractiveState::Disable
+        }
     }
     pub fn set_visual(&mut self, visual: bool) {
         self.visual = visual;
     }
     pub fn set_active(&mut self, active: bool) {
-        self.active = active;
+        self.interactive_state = if active {
+            InteractiveState::Active
+        } else {
+            InteractiveState::Ordinary
+        }
     }
     pub fn set_focus(&mut self, focus: bool) {
         self.focus = focus;
