@@ -52,7 +52,11 @@ impl DerefMut for Button {
 impl Control for Button {
     fn on_draw(&mut self, gl: &mut Draw) {
         println!("button[{}] draw rect {:?}",self.id(),&self.rect);
-        gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
+        // gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
+        unsafe {
+            // gl.clear_color(0.1, 0.2, 0.3, 1.0);
+            // gl.clear(glow::COLOR_BUFFER_BIT);
+        }
         println!("button[{}] focus {}",self.id(), self.focus);
         match self.interactive_state {
             InteractiveState::Ordinary => {

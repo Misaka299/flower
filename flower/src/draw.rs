@@ -12,10 +12,10 @@ pub struct Draw {
 }
 
 impl Draw {
-    pub fn new(gl: Context,window_height:Px) -> Draw {
+    pub fn new(gl: Context, window_height: Px) -> Draw {
         Self {
             gl,
-            window_height
+            window_height,
         }
     }
 }
@@ -25,7 +25,11 @@ impl Draw {
     ///
     pub fn create_canvas(&self, rect: &Rect) {
         println!("view -> {:?}", rect);
-        unsafe { self.viewport(rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32); }
+        unsafe {
+            self.viewport(rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
+            self.clear_color(0.1, 0.2, 0.3, 1.0);
+            self.clear(glow::COLOR_BUFFER_BIT);
+        }
     }
 
     pub fn rect(&mut self, rect: &Rect, color: &Color) {

@@ -236,8 +236,6 @@ impl Control for Window {
 
             gl.clear(glow::COLOR_BUFFER_BIT);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
-            gl.flush();
-            gl.finish();
             debug!("window[{}] draw",self.id());
 
             // println!("error {}",gl.get_error());

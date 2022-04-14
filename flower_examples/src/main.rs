@@ -1,13 +1,14 @@
-use fast_log::config::Config;
-use log::Level::Debug;
+#![windows_subsystem = "windows"]
+
 use flower::controls::button::Button;
 use flower::Flower;
 use flower::window::Window;
 
 // use flower::controls::button::Button;
 
+
 fn main() {
-    let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
+    // let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
 
     let flower = Flower::new();
 
