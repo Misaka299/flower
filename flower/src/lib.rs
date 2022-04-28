@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use glutin::event::ElementState::Pressed;
 use glutin::event::VirtualKeyCode::Tab;
 use glutin::event::WindowEvent;
@@ -25,24 +26,25 @@ pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> 
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
 pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
-pub struct Flower<T: 'static> {
+pub struct Flower<T:Debug + 'static> {
     el: EventLoop<T>,
+    shader_load: bool,
 }
 
 impl Flower<()> {
     pub fn new() -> Flower<()> {
-        Self { el: EventLoop::<()>::new() }
+        Self { el: EventLoop::<()>::new(), shader_load: false }
     }
 }
 
-impl<T> Flower<T> {
+impl<T:Debug> Flower<T> {
     pub fn with_user_event() -> Flower<T> {
-        Self { el: EventLoop::<T>::with_user_event() }
+        Self { el: EventLoop::<T>::with_user_event(), shader_load: false }
     }
 
     pub fn open(mut self) {
         self.el.run(move |event, event_loop, control_flow| {
-            // println!("{:?}", event);
+            println!("{:?}", event);
             match event {
                 glutin::event::Event::LoopDestroyed => return,
                 glutin::event::Event::WindowEvent { event, window_id } => match event {
@@ -58,22 +60,21 @@ impl<T> Flower<T> {
                         let window = get_window_by_window_id(&window_id);
                         if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
                             debug!("cursor moved - find result {:?}",option);
-                            let active_id = if option.1 == window.active_id {return;}else{window.active_id};
-                            // if option.1 == window.active_id {
-                            //     return;
-                            // }
-                            // let active_id = window.active_id;
+                            let active_id = if option.1 == window.active_id { return; } else { window.active_id };
                             debug!("update active");
                             if let Some(control) = window.search_control_by_id(&option.1) {
-                                debug!("success search control id is {},set this control focus is true",control.id());
+                                debug!("success search control id is {},set this control active is true",control.id());
                                 if let InteractiveState::Ordinary = control.interactive_state {
                                     control.interactive_state = InteractiveState::Active;
                                 }
                                 window.active_id = control.id;
                             }
                             if let Some(old_control) = window.search_control_by_id(&active_id) {
-                                debug!("success search control id is {},set this control focus is false",old_control.id());
-                                if let InteractiveState::Active = old_control.interactive_state { old_control.interactive_state = InteractiveState::Ordinary; }
+                                debug!("success search control id is {},set this control active is false",old_control.id());
+                                if let InteractiveState::Active = old_control.interactive_state {
+                                    old_control.interactive_state = InteractiveState::Ordinary;
+                                    window.active_id = window.id;
+                                }
                             }
                             debug!("re draw");
                             window.draw();
