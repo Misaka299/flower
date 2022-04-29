@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
-use glow::{Context, HasContext, Program};
+use glow::{Context, HasContext, MAX_VIEWPORTS, Program};
+use log::debug;
 
 use crate::Px;
 use crate::rect::Rect;
@@ -9,8 +10,8 @@ use crate::rect::Rect;
 
 pub struct Draw {
     gl: Context,
-    window_height: Px,
-    pub shader: Option<Program>,
+    pub(crate) window_height: Px,
+    pub(crate) shader: Option<Program>,
 }
 
 impl Draw {
@@ -53,8 +54,9 @@ impl Draw {
                 gl.detach_shader(program, shader);
                 gl.delete_shader(shader);
             }
-            // SHADER = Some(program);
-            // }
+
+            // println!("max viewports {}",gl.get_parameter_i32(MAX_VIEWPORTS));
+
             Self {
                 gl,
                 window_height,
@@ -70,6 +72,7 @@ impl Draw {
     pub fn create_canvas(&self, rect: &Rect) {
         println!("view -> {:?}", rect);
         unsafe {
+            debug!("create_canvas -> {} , {} , {} , {}",rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
             self.viewport(rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
         }
     }

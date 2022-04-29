@@ -81,6 +81,17 @@ impl Window {
     }
 }
 
+/// get set
+impl Window {
+    pub fn set_height(&mut self, height: Px) {
+        self.height = height;
+        self.gl.window_height = height;
+    }
+    pub fn set_width(&mut self, width: Px) {
+        self.width = width;
+    }
+}
+
 impl Deref for Window {
     type Target = ControlState;
 

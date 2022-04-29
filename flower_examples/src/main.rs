@@ -22,13 +22,13 @@ fn main() {
     btn1.width = 400.;
     win1.add_child(btn1);
 
-    let win2 = Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
-    let mut btn2 = Button::from("btn_ok".to_string(), "hello".to_string());
-    btn2.top = 200.;
-    btn2.height = 200.;
-    btn2.left = 400.;
-    btn2.width = 400.;
-    win2.add_child(btn2);
+    // let win2 = Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    // let mut btn2 = Button::from("btn_ok".to_string(), "hello".to_string());
+    // btn2.top = 200.;
+    // btn2.height = 200.;
+    // btn2.left = 400.;
+    // btn2.width = 400.;
+    // win2.add_child(btn2);
     // Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
     // Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
     // Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());

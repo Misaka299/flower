@@ -44,12 +44,14 @@ impl<T:Debug> Flower<T> {
 
     pub fn open(mut self) {
         self.el.run(move |event, event_loop, control_flow| {
-            println!("{:?}", event);
+            // println!("{:?}", event);
             match event {
                 glutin::event::Event::LoopDestroyed => return,
                 glutin::event::Event::WindowEvent { event, window_id } => match event {
                     WindowEvent::Resized(physical_size) => {
                         let window = get_window_by_window_id(&window_id);
+                        window.set_height(physical_size.height as Px);
+                        window.set_width(physical_size.width as Px);
                         window.context_wrapper.resize(physical_size);
                     }
                     WindowEvent::CloseRequested => {
