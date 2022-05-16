@@ -3,10 +3,11 @@ use glow::HasContext;
 
 use log::debug;
 
-use crate::color::Color;
+use crate::render::color::Color;
 use crate::control::{Control, ControlState, ControlType, InteractiveState};
-use crate::draw::Draw;
+use crate::render::draw::Draw;
 use crate::rect::Rect;
+use crate::render::render::{FRenderer, Render};
 
 pub struct Button {
     control_state: ControlState,
@@ -50,7 +51,7 @@ impl DerefMut for Button {
 }
 
 impl Control for Button {
-    fn on_draw(&mut self, gl: &mut Draw) {
+    fn on_draw(&mut self, gl: &mut FRenderer) {
         println!("button[{}] draw rect {:?}",self.id(),&self.rect);
         // gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
         unsafe {

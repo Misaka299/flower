@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use glow::{Context, HasContext};
 
-use crate::color::Color;
+use crate::render::color::Color;
 use crate::Px;
 use crate::rect::Rect;
 

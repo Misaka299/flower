@@ -9,12 +9,13 @@ use takeable_option::Takeable;
 
 use crate::{get_window_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::control::{Control, ControlState, ControlType};
-use crate::draw::Draw;
+use crate::render::draw::Draw;
+use crate::render::render::{FRenderer, Render};
 
 pub struct Window {
     title: String,
     control_state: ControlState,
-    gl: Draw,
+    gl: FRenderer,
     shader_version: String,
     pub(crate) context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
     pub(crate) focus_order_id: i32,
@@ -51,7 +52,7 @@ impl Window {
             WINDOWS.push((state_id, Box::new(Window {
                 title,
                 control_state: state,
-                gl: Draw::new(gl, height),
+                gl: FRenderer::new(gl, height),
                 shader_version,
                 context_wrapper: Takeable::new(window),
                 focus_order_id: state_id,
@@ -70,7 +71,7 @@ impl Window {
     pub fn control_state(&self) -> &ControlState {
         &self.control_state
     }
-    pub fn gl(&self) -> &Context {
+    pub fn gl(&self) -> &FRenderer {
         &self.gl
     }
     pub fn shader_version(&self) -> &str {
@@ -93,7 +94,7 @@ impl Deref for Window {
 impl Window {
     // 发起绘制
     pub fn draw(&mut self) {
-        unsafe { self.on_draw(&mut *null_mut() as &mut Draw); }
+        unsafe { self.on_draw(&mut *null_mut() as &mut FRenderer); }
         for x in self.control_state.child.iter_mut() {
             x.draw(&mut self.gl);
         }
@@ -165,7 +166,7 @@ impl DerefMut for Window {
 }
 
 impl Control for Window {
-    fn on_draw(&mut self, gl: &mut Draw) {
+    fn on_draw(&mut self, gl: &mut FRenderer) {
         unsafe {
             if !self.context_wrapper.is_current() {
                 let wrapper = Takeable::take(&mut self.context_wrapper);

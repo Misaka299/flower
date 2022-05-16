@@ -15,9 +15,8 @@ pub mod event;
 pub(crate) mod util;
 pub mod controls;
 pub mod control;
-pub mod draw;
 pub mod rect;
-pub mod color;
+pub mod render;
 
 pub type Px = f64;
 
@@ -58,11 +57,7 @@ impl<T> Flower<T> {
                         let window = get_window_by_window_id(&window_id);
                         if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
                             debug!("cursor moved - find result {:?}",option);
-                            let active_id = if option.1 == window.active_id {return;}else{window.active_id};
-                            // if option.1 == window.active_id {
-                            //     return;
-                            // }
-                            // let active_id = window.active_id;
+                            let active_id = if option.1 == window.active_id { return; } else { window.active_id };
                             debug!("update active");
                             if let Some(control) = window.search_control_by_id(&option.1) {
                                 debug!("success search control id is {},set this control focus is true",control.id());

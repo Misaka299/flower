@@ -4,9 +4,10 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
 
-use crate::draw::Draw;
+use crate::render::draw::Draw;
 use crate::Px;
 use crate::rect::Rect;
+use crate::render::render::{FRenderer, Render};
 
 // Why does setting zero make Windows invisible
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
@@ -394,7 +395,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     /// 绘制事件传播
-    fn draw(&mut self, gl: &mut Draw) {
+    fn draw(&mut self, gl: &mut FRenderer) {
         self.on_draw(gl);
         let child = &mut self.child;
         for x in child {
@@ -403,7 +404,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     // 组件自我绘制
-    fn on_draw(&mut self, gl: &mut Draw);
+    fn on_draw(&mut self, gl: &mut FRenderer);
 }
 
 impl dyn Control {
