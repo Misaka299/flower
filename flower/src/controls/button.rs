@@ -6,7 +6,7 @@ use crate::render::color::Color;
 use crate::control::{Control, ControlState, ControlType, InteractiveState};
 use crate::render::draw::Draw;
 use crate::rect::Rect;
-use crate::render::render::{FRenderer, Render};
+use crate::render::render::{Renderer, Render};
 
 pub struct Button {
     control_state: ControlState,
@@ -50,7 +50,7 @@ impl DerefMut for Button {
 }
 
 impl Control for Button {
-    fn on_draw(&mut self, gl: &mut FRenderer) {
+    fn on_draw(&mut self, gl: &mut Renderer) {
         println!("button[{}] draw rect {:?}",self.id(),&self.rect);
         // gl.create_canvas(&Rect::new(self.base_left + self.left,self.base_top + self.top, self.width, self.height));
         unsafe {
@@ -77,7 +77,7 @@ impl Control for Button {
 
             gl.generate_mipmap(TEXTURE_2D);
 
-            gl.use_def_program();
+
             gl.bind_texture(TEXTURE_2D, Some(texture));
             gl.draw_arrays(glow::QUADS, 0, 4);
 

@@ -10,12 +10,12 @@ use takeable_option::Takeable;
 use crate::{get_window_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::control::{Control, ControlState, ControlType};
 use crate::render::draw::Draw;
-use crate::render::render::{FRenderer, Render};
+use crate::render::render::{Renderer, Render};
 
 pub struct Window {
     title: String,
     control_state: ControlState,
-    gl: FRenderer,
+    gl: Renderer,
     shader_version: String,
     pub(crate) context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
     pub(crate) focus_order_id: i32,
@@ -52,7 +52,7 @@ impl Window {
             WINDOWS.push((state_id, Box::new(Window {
                 title,
                 control_state: state,
-                gl: FRenderer::new(gl, height),
+                gl: Renderer::new(gl, height),
                 shader_version,
                 context_wrapper: Takeable::new(window),
                 focus_order_id: state_id,
@@ -71,7 +71,7 @@ impl Window {
     pub fn control_state(&self) -> &ControlState {
         &self.control_state
     }
-    pub fn gl(&self) -> &FRenderer {
+    pub fn gl(&self) -> &Renderer {
         &self.gl
     }
     pub fn shader_version(&self) -> &str {
@@ -86,7 +86,7 @@ impl Window {
 impl Window {
     pub fn set_height(&mut self, height: Px) {
         self.height = height;
-        self.gl.window_height = height;
+        self.gl.set_window_height(height);
     }
     pub fn set_width(&mut self, width: Px) {
         self.width = width;
@@ -106,7 +106,7 @@ impl Window {
     // 发起绘制
     pub fn draw(&mut self) {
         debug!("draw all");
-        unsafe { self.on_draw(&mut *null_mut() as &mut FRenderer); }
+        unsafe { self.on_draw(&mut *null_mut() as &mut Renderer); }
         for x in self.control_state.child.iter_mut() {
             x.draw(&mut self.gl);
         }
@@ -178,7 +178,7 @@ impl DerefMut for Window {
 }
 
 impl Control for Window {
-    fn on_draw(&mut self, gl: &mut FRenderer) {
+    fn on_draw(&mut self, gl: &mut Renderer) {
         unsafe {
             if !self.context_wrapper.is_current() {
                 let wrapper = Takeable::take(&mut self.context_wrapper);
@@ -186,69 +186,73 @@ impl Control for Window {
                 self.context_wrapper = Takeable::new(wrapper);
             }
             let gl = &self.gl;
-            gl.create_canvas(&self.abs_rect());
+
+            let rect = &self.abs_rect();
+            gl.viewport(rect.left as i32, self.height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
+
             // println!("draw window_id : {:?} {:?}",self.id(), &gl.version());
-            let vertex_array = gl
-                .create_vertex_array()
-                .expect("Cannot create vertex array");
-            gl.bind_vertex_array(Some(vertex_array));
-
-            let program = gl.create_program().expect("Cannot create program");
-
-            let (vertex_shader_source, fragment_shader_source) = (
-                r#"const vec2 verts[3] = vec2[3](
-                vec2(0.5f, 1.0f),
-                vec2(0.0f, 0.0f),
-                vec2(1.0f, 0.0f)
-            );
-            out vec2 vert;
-            void main() {
-                vert = verts[gl_VertexID];
-                gl_Position = vec4(vert - 0.5, 0.0, 1.0);
-            }"#,
-                r#"precision mediump float;
-            in vec2 vert;
-            out vec4 color;
-            void main() {
-                color = vec4(vert, 0.5, 1.0);
-            }"#,
-            );
-
-            let shader_sources = [
-                (glow::VERTEX_SHADER, vertex_shader_source),
-                (glow::FRAGMENT_SHADER, fragment_shader_source),
-            ];
-
-            let mut shaders = Vec::with_capacity(shader_sources.len());
-
-            for (shader_type, shader_source) in shader_sources.iter() {
-                let shader = gl
-                    .create_shader(*shader_type)
-                    .expect("Cannot create shader");
-                gl.shader_source(shader, &format!("{}\n{}", "#version 460", shader_source));
-                gl.compile_shader(shader);
-                if !gl.get_shader_compile_status(shader) {
-                    panic!("{}", gl.get_shader_info_log(shader));
-                }
-                gl.attach_shader(program, shader);
-                shaders.push(shader);
-            }
-
-            gl.link_program(program);
-            if !gl.get_program_link_status(program) {
-                panic!("{}", gl.get_program_info_log(program));
-            }
-
-            for shader in shaders {
-                gl.detach_shader(program, shader);
-                gl.delete_shader(shader);
-            }
-
-            gl.use_program(Some(program));
+            // let vertex_array = gl
+            //     .create_vertex_array()
+            //     .expect("Cannot create vertex array");
+            // gl.bind_vertex_array(Some(vertex_array));
+            //
+            // let program = gl.create_program().expect("Cannot create program");
+            //
+            // let (vertex_shader_source, fragment_shader_source) = (
+            //     r#"const vec2 verts[3] = vec2[3](
+            //     vec2(0.5f, 1.0f),
+            //     vec2(0.0f, 0.0f),
+            //     vec2(1.0f, 0.0f)
+            // );
+            // out vec2 vert;
+            // void main() {
+            //     vert = verts[gl_VertexID];
+            //     gl_Position = vec4(vert - 0.5, 0.0, 1.0);
+            // }"#,
+            //     r#"precision mediump float;
+            // in vec2 vert;
+            // out vec4 color;
+            // void main() {
+            //     color = vec4(vert, 0.5, 1.0);
+            // }"#,
+            // );
+            //
+            // let shader_sources = [
+            //     (glow::VERTEX_SHADER, vertex_shader_source),
+            //     (glow::FRAGMENT_SHADER, fragment_shader_source),
+            // ];
+            //
+            // let mut shaders = Vec::with_capacity(shader_sources.len());
+            //
+            // for (shader_type, shader_source) in shader_sources.iter() {
+            //     let shader = gl
+            //         .create_shader(*shader_type)
+            //         .expect("Cannot create shader");
+            //     gl.shader_source(shader, &format!("{}\n{}", "#version 460", shader_source));
+            //     gl.compile_shader(shader);
+            //     if !gl.get_shader_compile_status(shader) {
+            //         panic!("{}", gl.get_shader_info_log(shader));
+            //     }
+            //     gl.attach_shader(program, shader);
+            //     shaders.push(shader);
+            // }
+            //
+            // gl.link_program(program);
+            // if !gl.get_program_link_status(program) {
+            //     panic!("{}", gl.get_program_info_log(program));
+            // }
+            //
+            // for shader in shaders {
+            //     gl.detach_shader(program, shader);
+            //     gl.delete_shader(shader);
+            // }
+            //
+            // gl.use_program(Some(program));
             gl.clear_color(0.1, 0.2, 0.3, 1.0);
 
             gl.clear(glow::COLOR_BUFFER_BIT);
-            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            // gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.use_def_program();
             debug!("window[{}] draw",self.id());
 
             // println!("error {}",gl.get_error());

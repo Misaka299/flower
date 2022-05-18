@@ -15,14 +15,20 @@ pub struct PaintSetting {
     border: Border,
 }
 
-pub struct FRenderer {
+pub struct Renderer {
     // gl: Context,
     gl: Draw,
 }
 
-impl Render for FRenderer {}
+impl Renderer {
+    pub(crate) fn set_window_height(&mut self, window_height: Px) {
+        self.gl.window_height = window_height;
+    }
+}
 
-impl FRenderer {
+impl Render for Renderer {}
+
+impl Renderer {
     pub fn new(gl: Context, height: Px) -> Self {
         Self {
             gl: Draw::new(gl, height)
@@ -30,7 +36,7 @@ impl FRenderer {
     }
 }
 
-impl FRenderer {
+impl Renderer {
     ///
     /// 绘制矩形
     ///
@@ -67,7 +73,7 @@ impl FRenderer {
     fn image(&mut self, image: Vec<u8>) {}
 }
 
-impl Deref for FRenderer {
+impl Deref for Renderer {
     type Target = Draw;
 
     fn deref(&self) -> &Self::Target {
@@ -75,7 +81,7 @@ impl Deref for FRenderer {
     }
 }
 
-impl DerefMut for FRenderer {
+impl DerefMut for Renderer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.gl
     }

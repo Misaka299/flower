@@ -7,7 +7,7 @@ use log::debug;
 use crate::render::draw::Draw;
 use crate::Px;
 use crate::rect::Rect;
-use crate::render::render::{FRenderer, Render};
+use crate::render::render::{Renderer, Render};
 
 // Why does setting zero make Windows invisible
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
@@ -399,7 +399,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     /// 绘制事件传播
-    fn draw(&mut self, gl: &mut FRenderer) {
+    fn draw(&mut self, gl: &mut Renderer) {
         self.on_draw(gl);
         let child = &mut self.child;
         for x in child {
@@ -408,7 +408,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     }
 
     // 组件自我绘制
-    fn on_draw(&mut self, gl: &mut FRenderer);
+    fn on_draw(&mut self, gl: &mut Renderer);
 }
 
 impl dyn Control {
