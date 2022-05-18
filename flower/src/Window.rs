@@ -82,6 +82,17 @@ impl Window {
     }
 }
 
+/// get set
+impl Window {
+    pub fn set_height(&mut self, height: Px) {
+        self.height = height;
+        self.gl.window_height = height;
+    }
+    pub fn set_width(&mut self, width: Px) {
+        self.width = width;
+    }
+}
+
 impl Deref for Window {
     type Target = ControlState;
 
@@ -94,6 +105,7 @@ impl Deref for Window {
 impl Window {
     // 发起绘制
     pub fn draw(&mut self) {
+        debug!("draw all");
         unsafe { self.on_draw(&mut *null_mut() as &mut FRenderer); }
         for x in self.control_state.child.iter_mut() {
             x.draw(&mut self.gl);
@@ -174,7 +186,7 @@ impl Control for Window {
                 self.context_wrapper = Takeable::new(wrapper);
             }
             let gl = &self.gl;
-            gl.create_canvas(self.rect());
+            gl.create_canvas(&self.abs_rect());
             // println!("draw window_id : {:?} {:?}",self.id(), &gl.version());
             let vertex_array = gl
                 .create_vertex_array()

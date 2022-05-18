@@ -233,6 +233,10 @@ impl ControlState {
         }
     }
 
+    pub fn abs_rect(&self) -> Rect {
+        Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height)
+    }
+
     pub fn id(&self) -> i32 {
         self.id
     }

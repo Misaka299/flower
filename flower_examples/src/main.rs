@@ -1,5 +1,7 @@
 #![windows_subsystem = "windows"]
 
+use fast_log::config::Config;
+use log::Level::Debug;
 use flower::controls::button::Button;
 use flower::Flower;
 use flower::window::Window;
@@ -8,19 +10,25 @@ use flower::window::Window;
 
 
 fn main() {
-    // let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
+    let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
 
     let flower = Flower::new();
 
     let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());
-    let mut button = Button::from("btn_ok".to_string(), "hello".to_string());
-    button.top = 200.;
-    button.height = 200.;
-    button.left = 400.;
-    button.width = 400.;
-    win1.add_child(button);
+    let mut btn1 = Button::from("btn_ok".to_string(), "hello".to_string());
+    btn1.top = 200.;
+    btn1.height = 200.;
+    btn1.left = 400.;
+    btn1.width = 400.;
+    win1.add_child(btn1);
 
-    // Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    // let win2 = Window::create(flower.el(), "windwos 2".to_string(), "windows 2".to_string());
+    // let mut btn2 = Button::from("btn_ok".to_string(), "hello".to_string());
+    // btn2.top = 200.;
+    // btn2.height = 200.;
+    // btn2.left = 400.;
+    // btn2.width = 400.;
+    // win2.add_child(btn2);
     // Window::create(flower.el(), "windwos 3".to_string(), "windows 3".to_string());
     // Window::create(flower.el(), "windwos 4".to_string(), "windows 4".to_string());
     // Window::create(flower.el(), "windwos 5".to_string(), "windows 5".to_string());
