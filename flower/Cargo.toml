@@ -20,9 +20,11 @@ log = "0.4"
 glutin = "0.28.0"
 glow = { version = "0.11.2" }
 glm = "0.2.3"
+glam = "0.20.2"
 takeable-option = "0.4"
 image = "0.24.1"
-
+#async-trait = "0.1"
+cgmath = "0.18.0"
 
 [[example]]
 name = "test"

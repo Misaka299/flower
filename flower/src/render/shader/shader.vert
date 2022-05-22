@@ -4,6 +4,17 @@ vec2(1.0f, -1.0f),
 vec2(-1.0f, -1.0f),
 vec2(-1.0f, 1.0f)
 );
+
+uniform mat4 transform;
+
+//const vec2 verts[4] = vec2[4](
+//vec2(0.375f, 0.375f),
+//vec2(0.375f, -0.375f),
+//vec2(-0.375f, -0.375f),
+//vec2(-0.375f, 0.375f)
+//);
+
+
 const vec2 coords[4] = vec2[4](
 vec2(1.0, 0.0),
 vec2(1.0, 1.0),
@@ -20,7 +31,7 @@ out vec2 coord;
 void main() {
     vert = verts[gl_VertexID];
     coord = coords[gl_VertexID];
-    gl_Position = vec4(vert, 0.0, 1.0);
+    gl_Position = vec4(vert, 0.0, 1.0) * transform;
 }
 
 
