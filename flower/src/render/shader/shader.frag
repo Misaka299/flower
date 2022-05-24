@@ -1,16 +1,56 @@
-precision mediump float;
+in vec2 uv;
+in vec3 frag_col;
 
-in vec2 vert;
-in vec2 coord;
+out vec4 col;
 
-in vec4 color;
+uniform float radius;
+uniform float alpha;
 
-out vec4 result;
-
-uniform sampler2D ourTexture;
+// sdf of a rectangle of half-dimensions dim, centered at p0
+float sdf(vec2 p0, vec2 dim, vec2 p) {
+    return length(max(vec2(0, 0), abs(p - p0) - dim));
+}
 
 void main() {
-//    result = texture(ourTexture,coord);
-    result = vec4(1,1,1,1);
-//    result = vec4(0.5, 0.0, 0.0, 1.0);
+    vec2 dim = vec2(0.5, 0.5);
+    if (radius > 0.0) {
+        float val = radius - sdf(dim, dim - radius * vec2(1.0, 1.0), uv);
+        col = vec4(frag_col, smoothstep(-0.005, 0.005, val * alpha));
+    }
+    else {
+        col = vec4(frag_col, alpha);
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//precision mediump float;
+//
+//in vec2 vert;
+//in vec2 coord;
+//
+//in vec4 color;
+//
+//out vec4 result;
+//
+//uniform sampler2D ourTexture;
+//
+//void main() {
+////    result = texture(ourTexture,coord);
+//    result = vec4(1,1,1,1);
+////    result = vec4(0.5, 0.0, 0.0, 1.0);
+//}

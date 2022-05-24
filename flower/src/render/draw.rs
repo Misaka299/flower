@@ -11,7 +11,7 @@ use crate::rect::Rect;
 pub struct Draw {
     gl: Context,
     pub(crate) window_height: Px,
-    pub(crate) shader: Option<Program>,
+    pub(crate) shader: Program,
 }
 
 impl Draw {
@@ -60,7 +60,7 @@ impl Draw {
             Self {
                 gl,
                 window_height,
-                shader: Some(program),
+                shader: program,
             }
         }
     }
@@ -79,7 +79,7 @@ impl Draw {
 
     pub fn use_def_program(&self) {
         unsafe {
-            self.use_program(self.shader);
+            self.use_program(Some(self.shader));
         }
     }
 

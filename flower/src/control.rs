@@ -104,7 +104,7 @@ impl ControlState {
     }
 
     pub fn in_scope(&self, x: i32, y: i32) -> bool {
-        debug!("x->{} y->{}",x,y);
+        // debug!("x->{} y->{}",x,y);
         return self.base_left + self.left <= x as Px &&
             self.base_left + self.left + self.width >= x as Px &&
             self.base_top + self.top <= y as Px &&
@@ -366,7 +366,7 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
     fn find_event_control_id(&self, level: u8, x: i32, y: i32) -> Option<(u8, i32)> {
-        debug!("归入");
+        // debug!("归入");
         if !self.visual {
             return None;
         }

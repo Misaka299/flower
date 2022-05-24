@@ -1,15 +1,12 @@
+extern crate nalgebra_glm as glm;
+
 use std::ops::{Deref, DerefMut};
 
-use glam::Mat4;
-use glm::{mat4, Matrix4x2, vec3};
-use glm::ext::translate;
-use glow::{FLOAT, HasContext, LINEAR, REPEAT, RGB, RGBA, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNIFORM, UniformLocation, UNSIGNED_BYTE};
+use glow::HasContext;
 
-use crate::control::{Control, ControlState, ControlType, InteractiveState};
+use crate::control::{Control, ControlState, ControlType};
 use crate::rect::Rect;
-use crate::render::color::Color;
-use crate::render::draw::Draw;
-use crate::render::render::{Render, Renderer};
+use crate::render::render::Renderer;
 
 pub struct Button {
     control_state: ControlState,
@@ -55,7 +52,7 @@ impl DerefMut for Button {
 impl Control for Button {
     fn on_draw(&mut self, gl: &mut Renderer) {
         println!("button[{}] draw rect {:?}", self.id(), &self.rect);
-        gl.create_canvas(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height));
+        // gl.create_canvas(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height));
 
         unsafe {
             // let verts_mat4x2 = mat2x4(
@@ -71,23 +68,12 @@ impl Control for Button {
             // gl.vertex_attrib_pointer_f32(a_position.unwrap(), 3, FLOAT, false, 0, 32 * 4);
             // gl.disable_vertex_attrib_array(a_position.unwrap());
 
-            let matrix4:Matrix4<f32> = mat4(1.0, 1.0, 1.0,
-                               1.0, 1.0, 1.0,
-                               1.0, 1.0, 1.0,
-                               1.0, 1.0, 1.0,
-                               1.0, 1.0, 1.0,
-                               1.0);
-            // let matrix4 = translate(&num::one(), vec3(0.5, -0.5, 1.0f32));
-            use glm::*;
-            use glm::ext::*;
-
-            let matrix = translate(&matrix4, vec3(1., 2., 3.));
 
             gl.use_def_program();
             // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
-
-            gl.uniform_4_f32(gl.get_uniform_location(gl.shader.unwrap(), "transform").as_ref(), matrix[0][0],matrix[0][1],matrix[0][2],matrix[0][3]);
-            gl.draw_arrays(glow::LINE_LOOP, 0, 4);
+            gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);
+            // gl.uniform_4_f32(gl.get_uniform_location(gl.shader.unwrap(), "transform").as_ref(), matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]);
+            // gl.draw_arrays(glow::LINE_LOOP, 0, 4);
             // let verts = gl.get_uniform_location(gl.shader.unwrap(), "verts");
             //     gl.uniform_4(verts.as_ref(),);
 
@@ -129,7 +115,7 @@ impl Control for Button {
             //     println!("x---- {:?}", x);
             // }
         }
-        println!("button[{}] focus {}", self.id(), self.focus);
+        println!("button[{}] draw over focus {}", self.id(), self.focus);
 
         // match self.interactive_state {
         //     InteractiveState::Ordinary => {

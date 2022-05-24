@@ -57,42 +57,42 @@ impl<T:Debug> Flower<T> {
                         remove_window_by_window_id(&window_id);
                     }
                     WindowEvent::CursorMoved { device_id, position, modifiers } => {
-                        debug!("cursor moved");
+                        // debug!("cursor moved");
                         let window = get_window_by_window_id(&window_id);
                         if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
-                            debug!("cursor moved - find result {:?}",option);
+                            // debug!("cursor moved - find result {:?}",option);
                             let active_id = if option.1 == window.active_id { return; } else { window.active_id };
-                            debug!("update active");
+                            // debug!("update active");
                             if let Some(control) = window.search_control_by_id(&option.1) {
-                                debug!("success search control id is {},set this control active is true",control.id());
+                                // debug!("success search control id is {},set this control active is true",control.id());
                                 if let InteractiveState::Ordinary = control.interactive_state {
                                     control.interactive_state = InteractiveState::Active;
                                 }
                                 window.active_id = control.id;
                             }
                             if let Some(old_control) = window.search_control_by_id(&active_id) {
-                                debug!("success search control id is {},set this control active is false",old_control.id());
+                                // debug!("success search control id is {},set this control active is false",old_control.id());
                                 if let InteractiveState::Active = old_control.interactive_state {
                                     old_control.interactive_state = InteractiveState::Ordinary;
                                     window.active_id = window.id;
                                 }
                             }
-                            debug!("re draw");
+                            // debug!("re draw");
                             window.draw();
                         }
                     }
                     WindowEvent::Focused(f) => {}
                     WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
                         if input.state != Pressed || input.virtual_keycode != Some(Tab) {
-                            debug!("return");
+                            // debug!("return");
                             return;
                         }
                         let mut window = get_window_by_window_id(&window_id);
                         if input.modifiers.shift() {
-                            debug!("keyboard input to change focus to previous");
+                            // debug!("keyboard input to change focus to previous");
                             window.move_focus_to_previous_control();
                         } else {
-                            debug!("keyboard input to change focus to next");
+                            // debug!("keyboard input to change focus to next");
                             window.move_focus_to_next_control();
                         }
                         window.draw();
