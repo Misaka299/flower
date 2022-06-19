@@ -3,21 +3,23 @@ use std::ptr::null_mut;
 
 use glow::{Context, HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
+use glutin::dpi::{LogicalSize, PhysicalSize};
 use glutin::event_loop::EventLoop;
 use log::debug;
 use takeable_option::Takeable;
 
 use crate::{get_window_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::control::{Control, ControlState, ControlType};
+use crate::rect::Point;
 use crate::render::draw::Draw;
-use crate::render::render::{Renderer, Render};
+use crate::render::render::Renderer;
 
 pub struct Window {
     title: String,
     control_state: ControlState,
     gl: Renderer,
     shader_version: String,
-    pub(crate) context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
+    pub context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
     pub(crate) focus_order_id: i32,
     pub(crate) active_id: i32,
 }
@@ -48,11 +50,11 @@ impl Window {
             println!("{:?}", &shader_version);
             let id = window.window().id();
             let state_id = state.id;
-            let height = state.height;
+            let size = Point::new(state.height, state.width);
             WINDOWS.push((state_id, Box::new(Window {
                 title,
                 control_state: state,
-                gl: Renderer::new(gl, height),
+                gl: Renderer::new(gl, size),
                 shader_version,
                 context_wrapper: Takeable::new(window),
                 focus_order_id: state_id,
@@ -84,12 +86,13 @@ impl Window {
 
 /// get set
 impl Window {
-    pub fn set_height(&mut self, height: Px) {
+    pub(crate) fn set_height(&mut self, height: Px) {
         self.height = height;
-        self.gl.set_window_height(height);
+        self.gl.set_canvas_size(Point::new(self.height,self.width));
     }
-    pub fn set_width(&mut self, width: Px) {
+    pub(crate) fn set_width(&mut self, width: Px) {
         self.width = width;
+        self.gl.set_canvas_size(Point::new(self.height,self.width));
     }
 }
 
@@ -186,9 +189,8 @@ impl Control for Window {
                 self.context_wrapper = Takeable::new(wrapper);
             }
             let gl = &self.gl;
+            // gl.use_def_program();
 
-            let rect = &self.abs_rect();
-            gl.viewport(rect.left as i32, self.height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
 
             // println!("draw window_id : {:?} {:?}",self.id(), &gl.version());
             // let vertex_array = gl
@@ -252,10 +254,13 @@ impl Control for Window {
 
             gl.clear(glow::COLOR_BUFFER_BIT);
             // gl.draw_arrays(glow::TRIANGLES, 0, 3);
-            gl.use_def_program();
+            // gl.use_def_program();
             debug!("window[{}] draw",self.id());
-
+            let rect = &self.abs_rect();
+            debug!("create_canvas -> {} , {} , {} , {}",rect.left as i32, self.height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
+            gl.viewport(rect.left as i32, self.height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
             // println!("error {}",gl.get_error());
         }
     }
 }
+// https://blog.csdn.net/tom_221x/article/details/51248832

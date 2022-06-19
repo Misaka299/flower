@@ -3,10 +3,12 @@ extern crate nalgebra_glm as glm;
 use std::ops::{Deref, DerefMut};
 
 use glow::HasContext;
+use crate::AGLTool::AGLTool;
 
 use crate::control::{Control, ControlState, ControlType};
 use crate::rect::Rect;
 use crate::render::render::Renderer;
+use crate::render::shape::ShapeCoord;
 
 pub struct Button {
     control_state: ControlState,
@@ -52,7 +54,6 @@ impl DerefMut for Button {
 impl Control for Button {
     fn on_draw(&mut self, gl: &mut Renderer) {
         println!("button[{}] draw rect {:?}", self.id(), &self.rect);
-        // gl.create_canvas(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height));
 
         unsafe {
             // let verts_mat4x2 = mat2x4(
@@ -69,9 +70,11 @@ impl Control for Button {
             // gl.disable_vertex_attrib_array(a_position.unwrap());
 
 
-            gl.use_def_program();
+            // gl.use_def_program();
+            gl.circle(ShapeCoord::from_rect());
+
             // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
-            gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);
+            // gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);
             // gl.uniform_4_f32(gl.get_uniform_location(gl.shader.unwrap(), "transform").as_ref(), matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]);
             // gl.draw_arrays(glow::LINE_LOOP, 0, 4);
             // let verts = gl.get_uniform_location(gl.shader.unwrap(), "verts");

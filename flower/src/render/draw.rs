@@ -10,12 +10,11 @@ use crate::rect::Rect;
 
 pub struct Draw {
     gl: Context,
-    pub(crate) window_height: Px,
     pub(crate) shader: Program,
 }
 
 impl Draw {
-    pub fn new(gl: Context, window_height: Px) -> Draw {
+    pub fn new(gl: Context) -> Draw {
         unsafe {
             // if SHADER.is_none() {
             let vertex_array = gl
@@ -59,7 +58,6 @@ impl Draw {
 
             Self {
                 gl,
-                window_height,
                 shader: program,
             }
         }
@@ -67,16 +65,6 @@ impl Draw {
 }
 
 impl Draw {
-    /// 使用
-    ///
-    pub fn create_canvas(&self, rect: &Rect) {
-        println!("view -> {:?}", rect);
-        unsafe {
-            debug!("create_canvas -> {} , {} , {} , {}",rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
-            self.viewport(rect.left as i32, self.window_height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
-        }
-    }
-
     pub fn use_def_program(&self) {
         unsafe {
             self.use_program(Some(self.shader));

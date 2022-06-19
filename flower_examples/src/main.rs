@@ -3,7 +3,8 @@
 use fast_log::config::Config;
 use log::Level::Debug;
 use flower::controls::button::Button;
-use flower::Flower;
+use flower::{Flower, Px};
+use flower::dpi::PhysicalSize;
 use flower::window::Window;
 
 // use flower::controls::button::Button;
@@ -15,6 +16,9 @@ fn main() {
     let flower = Flower::new();
 
     let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());
+    // win1.window().window().set_decorations(false);
+    win1.window().window().set_inner_size(PhysicalSize::new(433, 433));
+    win1.window().window().set_resizable(true);
     let mut btn1 = Button::from("btn_ok".to_string(), "hello".to_string());
     btn1.top = 200.;
     btn1.height = 200.;

@@ -18,6 +18,12 @@ pub mod controls;
 pub mod control;
 pub mod rect;
 pub mod render;
+pub mod AGLTool;
+
+// public library
+// pub use context::*;
+// pub use windowed::*;
+pub use glutin::*;
 
 pub type Px = f64;
 

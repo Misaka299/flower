@@ -4,10 +4,10 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
 
-use crate::render::draw::Draw;
 use crate::Px;
 use crate::rect::Rect;
-use crate::render::render::{Renderer, Render};
+use crate::render::draw::Draw;
+use crate::render::render::Renderer;
 
 // Why does setting zero make Windows invisible
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
