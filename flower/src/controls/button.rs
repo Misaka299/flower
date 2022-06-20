@@ -2,13 +2,10 @@ extern crate nalgebra_glm as glm;
 
 use std::ops::{Deref, DerefMut};
 
-use glow::HasContext;
-use crate::AGLTool::AGLTool;
 
 use crate::control::{Control, ControlState, ControlType};
-use crate::rect::Rect;
 use crate::render::render::Renderer;
-use crate::render::shape::ShapeCoord;
+use crate::render::shape::{Shape};
 
 pub struct Button {
     control_state: ControlState,
@@ -71,7 +68,14 @@ impl Control for Button {
 
 
             // gl.use_def_program();
-            gl.circle(ShapeCoord::from_rect());
+
+            let shape = Shape::rect(200., 200., 200., 200.);
+            gl.circle(shape);
+
+            // let shape = Shape::rect(50., 50., 50., 50.);
+            // gl.fill(shape, None);
+
+            // gl.circle(ShapeCoord::from_rect());
 
             // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
             // gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);

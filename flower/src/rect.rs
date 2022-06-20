@@ -1,15 +1,13 @@
-use crate::Px;
-
 #[derive(Debug, Copy, Clone)]
 pub struct Rect {
-    pub left: Px,
-    pub top: Px,
-    pub width: Px,
-    pub height: Px,
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Rect {
-    pub fn new(left: Px, top: Px, width: Px, height: Px) -> Rect {
+    pub fn new(left: f32, top: f32, width: f32, height: f32) -> Rect {
         Self {
             left,
             top,
@@ -20,12 +18,12 @@ impl Rect {
 }
 #[derive(Copy, Clone)]
 pub struct Point {
-    pub x: Px,
-    pub y: Px,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl Point {
-    pub fn new(x: Px, y: Px) -> Self {
+    pub fn new(x: f32, y: f32) -> Self {
         Self {
             x,
             y,

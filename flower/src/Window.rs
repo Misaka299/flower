@@ -1,17 +1,15 @@
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
-use glow::{Context, HasContext};
+use glow::{ HasContext};
 use glutin::{ContextWrapper, PossiblyCurrent};
-use glutin::dpi::{LogicalSize, PhysicalSize};
 use glutin::event_loop::EventLoop;
 use log::debug;
 use takeable_option::Takeable;
 
-use crate::{get_window_control_by_id, Px, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
+use crate::{get_window_control_by_id, util, WINDOW_ID_MAP, WINDOW_NAME_MAP, WINDOWS};
 use crate::control::{Control, ControlState, ControlType};
 use crate::rect::Point;
-use crate::render::draw::Draw;
 use crate::render::render::Renderer;
 
 pub struct Window {
@@ -31,8 +29,8 @@ impl Window {
 
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
         let mut state = ControlState::create(name.clone(), false, control_type);
-        state.width = 1024 as Px;
-        state.height = 768 as Px;
+        state.width = 1024 as f32;
+        state.height = 768 as f32;
         state.focus = true;
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
@@ -86,13 +84,13 @@ impl Window {
 
 /// get set
 impl Window {
-    pub(crate) fn set_height(&mut self, height: Px) {
+    pub(crate) fn set_height(&mut self, height: f32) {
         self.height = height;
-        self.gl.set_canvas_size(Point::new(self.height,self.width));
+        self.gl.update_window_size(Point::new(self.width, self.height));
     }
-    pub(crate) fn set_width(&mut self, width: Px) {
+    pub(crate) fn set_width(&mut self, width: f32) {
         self.width = width;
-        self.gl.set_canvas_size(Point::new(self.height,self.width));
+        self.gl.update_window_size(Point::new(self.width, self.height));
     }
 }
 

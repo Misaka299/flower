@@ -3,7 +3,7 @@
 use fast_log::config::Config;
 use log::Level::Debug;
 use flower::controls::button::Button;
-use flower::{Flower, Px};
+use flower::{Flower};
 use flower::dpi::PhysicalSize;
 use flower::window::Window;
 

@@ -1,6 +1,6 @@
-use crate::Px;
+
 
 pub struct Font{
-    size:Px,
+    size:f32,
 
 }

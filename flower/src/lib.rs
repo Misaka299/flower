@@ -4,7 +4,6 @@ use glutin::event::VirtualKeyCode::Tab;
 use glutin::event::WindowEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
-use log::debug;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
@@ -18,14 +17,11 @@ pub mod controls;
 pub mod control;
 pub mod rect;
 pub mod render;
-pub mod AGLTool;
 
 // public library
 // pub use context::*;
 // pub use windowed::*;
 pub use glutin::*;
-
-pub type Px = f64;
 
 pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> = Lazy::new(|| Vec::new());
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
@@ -55,8 +51,8 @@ impl<T:Debug> Flower<T> {
                 glutin::event::Event::WindowEvent { event, window_id } => match event {
                     WindowEvent::Resized(physical_size) => {
                         let window = get_window_by_window_id(&window_id);
-                        window.set_height(physical_size.height as Px);
-                        window.set_width(physical_size.width as Px);
+                        window.set_height(physical_size.height as f32);
+                        window.set_width(physical_size.width as f32);
                         window.context_wrapper.resize(physical_size);
                     }
                     WindowEvent::CloseRequested => {
