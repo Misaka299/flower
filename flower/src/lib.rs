@@ -58,6 +58,7 @@ impl<T:Debug> Flower<T> {
                     WindowEvent::CloseRequested => {
                         remove_window_by_window_id(&window_id);
                     }
+                    // 状态交互有问题，指向边界会变成激活状态。而且不进入时，激活状态不会被取消掉。
                     WindowEvent::CursorMoved { device_id, position, modifiers } => {
                         // debug!("cursor moved");
                         let window = get_window_by_window_id(&window_id);
@@ -80,8 +81,8 @@ impl<T:Debug> Flower<T> {
                                 }
                             }
                             // debug!("re draw");
-                            window.draw();
                         }
+                        window.draw();
                     }
                     WindowEvent::Focused(f) => {}
                     WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {

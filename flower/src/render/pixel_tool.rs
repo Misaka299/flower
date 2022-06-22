@@ -42,12 +42,6 @@ impl PixelTool {
 impl PixelTool {
     #[inline]
     pub fn to_glx(&self, x: f32) -> f32 {
-        if x <= 0f32 {
-            return -1f32;
-        }
-        if x > self.screen_width {
-            return 1f32;
-        }
         // if x in left return negative number
         if self.screen_width_half > x {
             return 0f32 - (1f32 - x * self.gl_pixel_width);
@@ -58,12 +52,6 @@ impl PixelTool {
 
     #[inline]
     pub fn to_gly(&self, y: f32) -> f32 {
-        if y <= 0f32 {
-            return 1f32;
-        }
-        if y > self.screen_height {
-            return -1f32;
-        }
         // if y in bottom return negative number
         if self.screen_height_half > y {
             return 0f32 - (y - self.screen_height_half) * self.gl_pixel_height;

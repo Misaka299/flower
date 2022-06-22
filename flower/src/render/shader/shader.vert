@@ -3,13 +3,13 @@ layout (location = 0) in vec2 vertex;
 vec2 viewSize = vec2(433,433);
 
 // Used to determine pixel position
-//uniform mat4 model;
-//uniform mat4 projection;
+uniform mat4 model;
+uniform mat4 projection;
 
 void main(){
 //    gl_Position = vec4(2.0 * vertex.x / viewSize.x - 1.0, 1.0 - 2.0 * vertex.y / viewSize.y, 0, 1);
     gl_Position = vec4(vertex.xy, 0.0, 1.0);
-//    gl_Position = projection * model * vec4(aPos.xy, 0.0, 1.0);
+//    gl_Position = projection * model * vec4(vertex.xy, 0.0, 1.0);
 }
 
 ////layout (location = 0) in vec2 p;

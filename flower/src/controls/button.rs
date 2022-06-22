@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 
 use crate::control::{Control, ControlState, ControlType};
+use crate::InteractiveState;
 use crate::render::render::Renderer;
 use crate::render::shape::{Shape};
 
@@ -69,13 +70,12 @@ impl Control for Button {
 
             // gl.use_def_program();
 
-            let shape = Shape::rect(200., 200., 200., 200.);
-            gl.circle(shape);
 
-            // let shape = Shape::rect(50., 50., 50., 50.);
-            // gl.fill(shape, None);
 
-            // gl.circle(ShapeCoord::from_rect());
+
+
+
+            // gl.Circle(ShapeCoord::from_rect());
 
             // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
             // gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);
@@ -123,20 +123,26 @@ impl Control for Button {
             // }
         }
         println!("button[{}] draw over focus {}", self.id(), self.focus);
-
+        let shape = Shape::rect(self.left, self.top, self.width, self.height);
         // match self.interactive_state {
         //     InteractiveState::Ordinary => {
-        //         gl.fill(&self.rect, &Color::from_hex_str("#FFF").unwrap());
+                gl.line_loop(shape);
         //     }
         //     InteractiveState::Active => {
-        //         gl.fill(&self.rect, &Color::from_hex_str("#efefef").unwrap());
+        //         gl.fill(shape, None);
         //     }
         //     InteractiveState::Pressed => {
-        //         gl.fill(&self.rect, &Color::from_hex_str("#3c4043").unwrap());
+        //         gl.line_loop(shape);
         //     }
         //     InteractiveState::Disable => {
-        //         gl.fill(&self.rect, &Color::from_hex_str("##eaeaea").unwrap());
+        //         gl.line_loop(shape);
         //     }
         // }
+
+        let shape = Shape::sector(200., 200., 100., 0.,50.0);
+        gl.line_loop(shape);
+
+        let shape = Shape::circle(400., 400., 100.);
+        gl.line_loop(shape);
     }
 }

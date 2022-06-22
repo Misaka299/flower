@@ -11,7 +11,7 @@ use flower::window::Window;
 
 
 fn main() {
-    let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
+    // let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
 
     let flower = Flower::new();
 
