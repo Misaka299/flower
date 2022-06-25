@@ -1,16 +1,13 @@
-extern crate nalgebra_glm as glm;
-
 use std::ops::{Deref, DerefMut};
 
 use bytemuck::cast_slice;
-use glow::{Context, HasContext, NativeVertexArray, Program};
+use glow::{Context, HasContext, Program};
 use log::debug;
 
 use crate::rect::Point;
 use crate::render::border::Border;
-use crate::render::color::Color;
 use crate::render::pixel_tool::PixelTool;
-use crate::render::shape::{Shape, ShapeType};
+use crate::render::shape::Shape;
 
 pub struct PaintStyle {
     radiu: f32,
@@ -20,12 +17,13 @@ pub struct PaintStyle {
 pub struct Renderer {
     gl: Context,
     pixel: PixelTool,
-    // vao: Result<NativeVertexArray, String>,
     pub(crate) shader: Program,
 }
 
+
 // create
 impl Renderer {
+    const ROUND_VERTEX_MAX_COUNT: i32 = 36000;
     pub fn new(gl: Context, scene_size: Point) -> Self {
         unsafe {
             let program = gl.create_program().expect("Cannot create program");
@@ -60,9 +58,6 @@ impl Renderer {
                 gl.delete_shader(shader);
             }
 
-            let vao = gl.create_vertex_array();
-            // 绑定vao
-            gl.bind_vertex_array(vao.ok());
 
             Self {
                 gl,
@@ -79,117 +74,124 @@ impl Renderer {
         self.pixel.update(size.x as f32, size.y as f32);
     }
 
-    ///
-    /// use line link point.
-    ///
-    pub fn line(&mut self, mut shape: Shape) {
-        unsafe {
-            self.use_def_program();
-
-            let count = self.send_vbo_shape(&mut shape);
-
-            self.gl.draw_arrays(glow::LINE, 0, count);
-            debug!("draw debug message -> {:?}",self.gl.get_debug_message_log(self.gl.get_error()));
-        }
-    }
-
-    ///
-    /// use line link point.
-    /// the last point is linked to the first point.
-    ///
-    pub fn line_loop(&mut self, mut shape: Shape) {
-        unsafe {
-            self.use_def_program();
-
-            let count = self.send_vbo_shape(&mut shape);
-            debug!("{}",Color::from_hex_str("00CCFF").unwrap().rgba_gl_vec4());
-            self.gl.draw_arrays(glow::LINE_LOOP, 0, count);
-            debug!("draw debug message -> {:?}",self.gl.get_debug_message_log(self.gl.get_error()));
-        }
-    }
-
-    ///
-    /// fill shape.
-    ///
-    pub fn fill(&mut self, mut shape: Shape, border: Option<Border>) {
-        unsafe {
-            self.use_def_program();
-
-            let count = self.send_vbo_shape(&mut shape);
-
-            self.gl.draw_arrays(glow::QUADS, 0, count);
-            debug!("draw debug message -> {:?}",self.gl.get_debug_message_log(self.gl.get_error()));
-        }
-    }
-
     /// 绘制文字
     pub fn text(&mut self, text: String, setting: PaintStyle) {}
 
     /// 缺失参数,绘制方式
     pub fn image(&mut self, image: Vec<u8>) {}
-}
 
-// tool
-impl Renderer {
     pub unsafe fn use_def_program(&self) {
         self.use_program(Some(self.shader));
     }
-    pub unsafe fn send_vbo_shape(&mut self, shape: &mut Shape) -> i32 {
-        let mut vec: Vec<f32>;
-        match shape.shape_type {
-            ShapeType::Sector => {
-                let glx = self.pixel.to_glx(shape.vertex[0]);
-                let gly = self.pixel.to_gly(shape.vertex[1]);
-
-                let radiu_x = (1. + self.pixel.to_glx(shape.vertex[2]));
-                let radiu_y = (1. - self.pixel.to_gly(shape.vertex[3]));
-
-                vec = Vec::new();
-                let mut angle_start = (shape.vertex[4] * 100.) as i32;
-                let mut angle_end = (shape.vertex[5] * 100.) as i32;
-
-                let angle_count = 36000;
-                if angle_end - angle_start < angle_count {
-                    vec.push(glx);
-                    vec.push(gly);
+    ///
+    /// mode:
+    /// 不知道为什么线段不能用LINE_LOOP LINE 必须得用LINES
+    /// GL_LINE_STRIP 多点链接，第一个点会和最后一个点不会链接起来
+    /// LINE_LOOP 多点链接，第一个点会和最后一个点链接起来
+    /// LINES 绘制线时, 会将从 glBegin 到 glEnd 之间的所有的点都绘制出来 ;注意必须成对设置 , 如果设置 奇数个点 , 最后一个点会被丢弃;
+    ///
+    /// 下面是各个图形推荐的一些mode配置
+    /// TRIANGLE_FAN 填充圆、扇形
+    /// LINE_LOOP 空心圆，空心扇形
+    /// LINES 线段
+    ///
+    pub fn draw_shape(&self, shape: Shape, mode: u32) {
+        unsafe {
+            self.use_def_program();
+            let mut vec: Vec<f32>;
+            match shape {
+                Shape::Sector { origin_x, origin_y, radiu_x, radiu_y, start_angle, end_angle } => {
+                    vec = Vec::new();
+                    self.calc_round_edge(&mut vec, origin_x, origin_y, radiu_x, radiu_y, start_angle, end_angle, true);
                 }
-                println!("{} {} {}", angle_start, angle_end, angle_count);
-                for i in angle_start..angle_end {
-                    use std::f32::consts;
-                    let x = f32::cos(consts::PI / angle_count as f32 * (2 * i) as f32) * radiu_x;
-                    let y = f32::sin(consts::PI / angle_count as f32 * (2 * i) as f32) * radiu_y;
-
-                    vec.push(x + glx);
-                    vec.push(y + gly);
+                Shape::Other { mut vertex } => {
+                    for i in 0..vertex.len() {
+                        if i % 2 == 0 {
+                            vertex[i] = self.pixel.to_glx(vertex[i]);
+                        } else {
+                            vertex[i] = self.pixel.to_gly(vertex[i]);
+                        }
+                    }
+                    vec = vertex.clone();
                 }
-            }
-            ShapeType::Other => {
-                for i in 0..shape.len() {
-                    if i % 2 == 0 {
-                        shape[i] = self.pixel.to_glx(shape[i]);
+                Shape::Line { start_x, start_y, end_x, end_y } => {
+                    vec = Vec::new();
+                    println!("{}-{}-{}-{}", start_x, start_y, end_x, end_y);
+                    vec.push(self.pixel.to_glx(start_x));
+                    vec.push(self.pixel.to_gly(start_y));
+                    vec.push(self.pixel.to_glx(end_x));
+                    vec.push(self.pixel.to_gly(end_y));
+                }
+                Shape::Rect { left, top, width, height, radiu_left_top, radiu_left_bottom, radiu_right_top, radiu_right_bottom } => {
+                    vec = Vec::new();
+                    let right_angle = (360 / 4) as f32;
+                    if radiu_left_top == 0. {
+                        vec.push(self.pixel.to_glx(left));
+                        vec.push(self.pixel.to_gly(top));
                     } else {
-                        shape[i] = self.pixel.to_gly(shape[i]);
+                        self.calc_round_edge(&mut vec, left + radiu_left_top, top + radiu_left_top, radiu_left_top, radiu_left_top, right_angle * 1., right_angle * 2., false);
+                    }
+                    if radiu_left_bottom == 0. {
+                    vec.push(self.pixel.to_glx(left));
+                    vec.push(self.pixel.to_gly(top + height));
+                    } else {
+                        self.calc_round_edge(&mut vec, left + radiu_left_bottom, top + height - radiu_left_bottom, radiu_left_bottom, radiu_left_bottom, right_angle * 2., right_angle * 3.,false);
+                    }
+                    if radiu_right_bottom == 0. {
+                    vec.push(self.pixel.to_glx(left + width));
+                    vec.push(self.pixel.to_gly(top + height));
+                    } else {
+                        self.calc_round_edge(&mut vec, left + width - radiu_left_bottom, top + height - radiu_left_bottom, radiu_right_bottom, radiu_right_bottom,right_angle * 3., right_angle * 4.,false);
+                    }
+                    if radiu_right_top == 0. {
+                    vec.push(self.pixel.to_glx(left + width));
+                    vec.push(self.pixel.to_gly(top));
+                    } else {
+                        self.calc_round_edge(&mut vec, left + width - radiu_left_bottom, top + radiu_left_bottom, radiu_right_top, radiu_right_top, right_angle * 0., right_angle * 1.,false);
                     }
                 }
-                vec = shape.vertex.clone();
             }
+
+            let vbo = self.gl.create_buffer().unwrap();
+
+            // 绑定vbo
+            self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+            self.gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vec), glow::STATIC_DRAW);
+
+            // 告诉vao如何解释vbo的数据
+            self.gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 0, 0);
+            self.gl.enable_vertex_attrib_array(0);
+
+            // 解绑vbo
+            self.gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            self.gl.draw_arrays(mode, 0, vec.len() as i32 / 2);
+            self.gl.delete_buffer(vbo);
+            debug!("draw debug message -> {:?}",self.gl.get_debug_message_log(self.gl.get_error()));
         }
+    }
 
+    unsafe fn calc_round_edge(&self, vec: &mut Vec<f32>, origin_x: f32, origin_y: f32, radiu_x: f32, radiu_y: f32, start_angle: f32, end_angle: f32, need_center: bool) {
+        let glx = self.pixel.to_glx(origin_x);
+        let gly = self.pixel.to_gly(origin_y);
 
-        let vbo = self.gl.create_buffer();
+        let radiu_x = 1. + self.pixel.to_glx(radiu_x);
+        let radiu_y = 1. - self.pixel.to_gly(radiu_y);
 
+        let mut angle_start = (start_angle * 100.) as i32;
+        let mut angle_end = (end_angle * 100.) as i32;
 
-        // 绑定vbo
-        self.gl.bind_buffer(glow::ARRAY_BUFFER, vbo.ok());
-        self.gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, cast_slice(&vec), glow::STATIC_DRAW);
+        if need_center && angle_end - angle_start < Renderer::ROUND_VERTEX_MAX_COUNT {
+            vec.push(glx);
+            vec.push(gly);
+        }
+        for i in angle_start..angle_end {
+            use std::f32::consts;
+            let x = f32::cos(consts::PI / Renderer::ROUND_VERTEX_MAX_COUNT as f32 * (2 * i) as f32) * radiu_x;
+            let y = f32::sin(consts::PI / Renderer::ROUND_VERTEX_MAX_COUNT as f32 * (2 * i) as f32) * radiu_y;
 
-        // 告诉vao如何解释vbo的数据
-        self.gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 0, 0);
-        self.gl.enable_vertex_attrib_array(0);
-
-        // 解绑vbo
-        self.gl.bind_buffer(glow::ARRAY_BUFFER, None);
-        vec.len() as i32 / 2
+            vec.push(x + glx);
+            vec.push(y + gly);
+        }
     }
 }
 

@@ -20,7 +20,7 @@ rustc-hash = { version = "1.0" }
 log = "0.4"
 glutin = "0.28.0"
 glow = { version = "0.11.2" }
-nalgebra-glm = "0.12"
+#nalgebra-glm = "0.12"
 image = "0.24.1"
 bytemuck = "1.8.0"
 #async-trait = "0.1"

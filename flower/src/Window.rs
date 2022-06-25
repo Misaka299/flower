@@ -108,9 +108,9 @@ impl Window {
     pub fn draw(&mut self) {
         debug!("draw all");
         unsafe { self.on_draw(&mut *null_mut() as &mut Renderer); }
-        // for x in self.control_state.child.iter_mut() {
-        //     x.draw(&mut self.gl);
-        // }
+        for x in self.control_state.child.iter_mut() {
+            x.draw(&mut self.gl);
+        }
         self.context_wrapper.swap_buffers().unwrap();
     }
 
@@ -179,7 +179,7 @@ impl DerefMut for Window {
 }
 
 impl Control for Window {
-    fn on_draw(&mut self, gl: &mut Renderer) {
+    fn on_draw(&mut self, _: &mut Renderer) {
         unsafe {
             if !self.context_wrapper.is_current() {
                 let wrapper = Takeable::take(&mut self.context_wrapper);
@@ -250,7 +250,7 @@ impl Control for Window {
             // gl.use_program(Some(program));
             gl.clear_color(0.1, 0.2, 0.3, 1.0);
 
-            gl.clear(glow::COLOR_BUFFER_BIT);
+            gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
             // gl.clear_buffer_f32_slice(0, 0, 0);
             // gl.draw_arrays(glow::TRIANGLES, 0, 3);
             // gl.use_def_program();

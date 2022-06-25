@@ -1,10 +1,8 @@
-extern crate nalgebra_glm as glm;
-
 use std::ops::{Deref, DerefMut};
+use glow::HasContext;
 
 
 use crate::control::{Control, ControlState, ControlType};
-use crate::InteractiveState;
 use crate::render::render::Renderer;
 use crate::render::shape::{Shape};
 
@@ -71,10 +69,6 @@ impl Control for Button {
             // gl.use_def_program();
 
 
-
-
-
-
             // gl.Circle(ShapeCoord::from_rect());
 
             // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
@@ -121,12 +115,20 @@ impl Control for Button {
             // for x in gl.get_debug_message_log(i) {
             //     println!("x---- {:?}", x);
             // }
+
+
+            // glow::SRC1_ALPHA;
+            // gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+            // gl.enable(glow::BLEND);
+            // gl.enable(glow::LINE_SMOOTH);
+            // gl.enable(glow::POLYGON_SMOOTH);
+            // gl.enable(glow::MULTISAMPLE)
         }
         println!("button[{}] draw over focus {}", self.id(), self.focus);
-        let shape = Shape::rect(self.left, self.top, self.width, self.height);
+        let shape = Shape::line(self.left, self.top, self.left + self.width, self.top + self.height);
         // match self.interactive_state {
         //     InteractiveState::Ordinary => {
-                gl.line_loop(shape);
+        gl.draw_shape(shape, glow::LINES);
         //     }
         //     InteractiveState::Active => {
         //         gl.fill(shape, None);
@@ -139,10 +141,13 @@ impl Control for Button {
         //     }
         // }
 
-        let shape = Shape::sector(200., 200., 100., 0.,50.0);
-        gl.line_loop(shape);
-
+        let shape = Shape::sector(200., 200., 100., 0., 50.0);
+        gl.draw_shape(shape, glow::TRIANGLE_FAN);
+        //
         let shape = Shape::circle(400., 400., 100.);
-        gl.line_loop(shape);
+        gl.draw_shape(shape, glow::TRIANGLE_FAN);
+
+        let shape = Shape::rect_radiu(50., 50., 100., 100., 20.);
+        gl.draw_shape(shape, glow::LINE_LOOP);
     }
 }

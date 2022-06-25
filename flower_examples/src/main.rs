@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
 use fast_log::config::Config;
-use log::Level::Debug;
+use log::LevelFilter;
 use flower::controls::button::Button;
 use flower::{Flower};
 use flower::dpi::PhysicalSize;
@@ -11,13 +11,13 @@ use flower::window::Window;
 
 
 fn main() {
-    // let log = fast_log::init(Config::new().console().level(Debug)).unwrap();
+    let log = fast_log::init(Config::new().console().level(LevelFilter::Debug)).unwrap();
 
     let flower = Flower::new();
 
     let win1 = Window::create(flower.el(), "win_1".to_string(), "windows 1".to_string());
     // win1.window().window().set_decorations(false);
-    win1.window().window().set_inner_size(PhysicalSize::new(433, 433));
+    win1.window().window().set_inner_size(PhysicalSize::new(860, 660));
     win1.window().window().set_resizable(true);
     let mut btn1 = Button::from("btn_ok".to_string(), "hello".to_string());
     btn1.top = 200.;
