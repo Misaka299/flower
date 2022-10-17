@@ -1,8 +1,11 @@
 use std::ops::{Deref, DerefMut};
 use glow::HasContext;
+use image::imageops::FilterType;
 
 
 use crate::control::{Control, ControlState, ControlType};
+use crate::render::color::Color;
+use crate::render::fill::{Align, Fill, Image, ZoomType};
 use crate::render::render::Renderer;
 use crate::render::shape::{Shape};
 
@@ -125,10 +128,10 @@ impl Control for Button {
             // gl.enable(glow::MULTISAMPLE)
         }
         println!("button[{}] draw over focus {}", self.id(), self.focus);
-        let shape = Shape::line(self.left, self.top, self.left + self.width, self.top + self.height);
+        // let shape = Shape::line(self.left, self.top, self.left + self.width, self.top + self.height);
         // match self.interactive_state {
         //     InteractiveState::Ordinary => {
-        gl.draw_shape(shape, glow::LINES);
+        // gl.draw_shape(shape, glow::LINES, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
         //     }
         //     InteractiveState::Active => {
         //         gl.fill(shape, None);
@@ -141,13 +144,24 @@ impl Control for Button {
         //     }
         // }
 
-        let shape = Shape::sector(200., 200., 100., 0., 50.0);
-        gl.draw_shape(shape, glow::TRIANGLE_FAN);
-        //
-        let shape = Shape::circle(400., 400., 100.);
-        gl.draw_shape(shape, glow::TRIANGLE_FAN);
+        // 加载并生成纹理
+        let mut image = image::open("flower/resource/test2.png").expect("Failed to load texture");
+        image = image.resize(40, 60, FilterType::Nearest);
+        // let shape = Shape::sector(200., 200., 100., 0., 50.0);
+        // gl.draw_shape(shape, glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
+        // //
+        // let shape = Shape::circle(400., 400., 100.);
+        // gl.draw_shape(shape, glow::QUADS, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
 
-        let shape = Shape::rect_radiu(50., 50., 100., 100., 20.);
-        gl.draw_shape(shape, glow::LINE_LOOP);
+        let shape = Shape::rect_radiu(50., 50., 100., 100., 0.);
+
+        // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(image.clone(), Align::LeftBottom, ZoomType::Zoom, glow::NEAREST)));
+        // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(
+        //     image.clone(),
+        //     Align::LeftBottom,
+        //     ZoomType::Tile(self.width, self.height),
+        //     glow::NEAREST,
+        // )));
+        gl.draw_shape(shape.clone(), glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00CCFF").unwrap()));
     }
 }

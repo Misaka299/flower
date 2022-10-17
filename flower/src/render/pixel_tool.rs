@@ -29,19 +29,19 @@ impl PixelTool {
 
     #[inline]
     pub fn update(&mut self, width: f32, height: f32) {
-        println!("update -> {} {}", width, height);
         self.screen_width = width;
         self.screen_height = height;
         self.screen_width_half = width / 2f32;
         self.screen_height_half = height / 2f32;
         self.gl_pixel_width = 1f32 / self.screen_width_half;
         self.gl_pixel_height = 1f32 / self.screen_height_half;
+        println!("pixel -> {:?}", self);
     }
 }
 
 impl PixelTool {
     #[inline]
-    pub fn to_glx(&self, x: f32) -> f32 {
+    pub fn to_gl_x(&self, x: f32) -> f32 {
         // if x in left return negative number
         if self.screen_width_half > x {
             return 0f32 - (1f32 - x * self.gl_pixel_width);
@@ -51,12 +51,22 @@ impl PixelTool {
     }
 
     #[inline]
-    pub fn to_gly(&self, y: f32) -> f32 {
+    pub fn to_gl_y(&self, y: f32) -> f32 {
         // if y in bottom return negative number
         if self.screen_height_half > y {
             return 0f32 - (y - self.screen_height_half) * self.gl_pixel_height;
         }
         // y in top, need to subtract half the pixel length,then calc gl position
         return 1f32 - y * self.gl_pixel_height;
+    }
+
+    #[inline]
+    pub fn get_gl_pixel_width(&self) -> f32 {
+        return self.gl_pixel_width;
+    }
+
+    #[inline]
+    pub fn get_gl_pixel_height(&self) -> f32 {
+        return self.gl_pixel_height;
     }
 }

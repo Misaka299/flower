@@ -1,15 +1,25 @@
 layout (location = 0) in vec2 vertex;
+layout (location = 1) in vec4 vertex_color;
+layout (location = 2) in vec2 vertex_coord;
 
-vec2 viewSize = vec2(433,433);
+const float s = 0.4;
 
-// Used to determine pixel position
-uniform mat4 model;
-uniform mat4 projection;
+const vec2 verts[4] = vec2[4](
+vec2(0.5f, 0.5),
+vec2(0.5f, -0.5f),
+vec2(-0.5f, -0.5f),
+vec2(-0.5f, 0.5f)
+);
 
+out vec2 coord;
+out vec4 color;
 void main(){
-//    gl_Position = vec4(2.0 * vertex.x / viewSize.x - 1.0, 1.0 - 2.0 * vertex.y / viewSize.y, 0, 1);
+//    coord = coords[gl_VertexID];
+//    coord = coords[gl_VertexID];
+    color = vertex_color;
+    coord = vertex_coord.xy;
     gl_Position = vec4(vertex.xy, 0.0, 1.0);
-//    gl_Position = projection * model * vec4(vertex.xy, 0.0, 1.0);
+//    gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
 }
 
 ////layout (location = 0) in vec2 p;

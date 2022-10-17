@@ -1,3 +1,6 @@
+use crate::render::fill::Fill;
+
+#[derive(Copy, Clone)]
 pub struct Color {
     r: u8,
     g: u8,
@@ -45,7 +48,12 @@ impl Color {
     pub fn rgba_gl_vec4(&self) -> String {
         format!("vec4({},{},{},{});", self.r as f32 / 255., self.g as f32 / 255., self.b as f32 / 255., self.a as f32 / 255.)
     }
+
+    pub fn rgba_gl_vec(&self) -> Vec<f32> {
+        vec![self.r as f32 / 255., self.g as f32 / 255., self.b as f32 / 255., self.a as f32 / 255.]
+    }
 }
+
 
 const fn color_from_4bit_hex(components: [u8; 8]) -> Color {
     let [r0, r1, g0, g1, b0, b1, a0, a1] = components;

@@ -1,32 +1,27 @@
-out vec4 col;
+in vec2 coord;
+in vec4 color;
+
+// 1 color 2 texture
+uniform int type;
+uniform sampler2D ourTexture;
+
+
+out vec4 result;
+
 void main() {
-    col = vec4(0.0, 0.8, 1.0, 1.0);
+    if (1 == type || type > 1 && (1 & type) == 1) {
+        result = color;
+    }
+    if (2 == type || type > 2 && (2 & type) == 2) {
+        result = texture(ourTexture, coord);
+    }
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//
+//
+//void main() {
+////    result = texture(ourTexture,coord);
 
 
 //in vec2 uv;

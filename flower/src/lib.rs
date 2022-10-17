@@ -17,13 +17,17 @@ pub mod controls;
 pub mod control;
 pub mod rect;
 pub mod render;
+pub mod theme;
 
 // public library
 // pub use context::*;
 // pub use windowed::*;
 pub use glutin::*;
 
+
+
 pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> = Lazy::new(|| Vec::new());
+
 pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
 pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
 
