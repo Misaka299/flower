@@ -1,14 +1,19 @@
 # Flower
 
-I want to write a program using Rust.But there is no suitable GUI library.
+[中文点这](https://github.com/Misaka15535/flower/README_zh_cn.md)
 
-GUI libraries with large compiled files are not on my consider.
+My English is not good, the content here is mainly translated by Google.
+Although this will also be updated (I will use Google Translate to ensure a certain degree of perfection), the synchronization progress may be slightly slower.
+If you can read Chinese, please read the Chinese documentation first.
+Iterative updates will be mainly based on Chinese documents.
 
-I used the "Druid" library and felt like I was pitting my wits against it.
+If you would like to help with translation, you are very welcome.
 
-So I want to write one myself. But my rust skills are only beginner level, so in early alpha releases this library will be licensed under GLWTPL until I consider it a qualifying open source repository.
+Good luck.
 
-This repository is still in the starting state, and the API and program structure may be changed at any time. Please do not officially use it for the time being !!!
+### plan or idea:
 
-
--- from google translate.
+- function queue
+- layout queue
+- render queue
+- render setting

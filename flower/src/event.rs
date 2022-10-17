@@ -1,4 +1,13 @@
-pub enum Event {
+pub struct Event {
+    on_click: Option<Box<dyn Fn()>>,
+    on_move: Option<Box<dyn Fn()>>,
+    on_resize: Option<Box<dyn Fn()>>,
+}
+
+pub enum Message {
+    OnClick(Option<Box<dyn Fn()>>),
+    /// 重画
+    OnPrint,
     /// 窗口移动
     WindowMove,
     /// 窗口大小被改变
