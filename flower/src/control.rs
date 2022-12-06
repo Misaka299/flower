@@ -46,8 +46,8 @@ pub struct ControlState {
     /// 组件类型
     pub(crate) control_type: ControlType,
     /// 父级组件的位置
-    pub(crate) base_left: f32,
-    pub(crate) base_top: f32,
+    pub(crate) base_left: u32,
+    pub(crate) base_top: u32,
     /// 位置计算方式
     pub(crate) position: Position,
     pub(crate) rect: Rect,
@@ -80,10 +80,10 @@ impl ControlState {
             parent_id: 0,
             class: vec![],
             control_type,
-            base_left: 0 as f32,
-            base_top: 0 as f32,
+            base_left: 0,
+            base_top: 0,
             position: Position::Relative,
-            rect: Rect::new(0., 0., 50., 20.),
+            rect: Rect::new(0, 0, 50, 20),
             visual: true,
             interactive_state: InteractiveState::Ordinary,
             focus_order: id,
@@ -103,10 +103,10 @@ impl ControlState {
 
     pub fn in_scope(&self, x: i32, y: i32) -> bool {
         // debug!("x->{} y->{}",x,y);
-        return self.base_left + self.left <= x as f32 &&
-            self.base_left + self.left + self.width >= x as f32 &&
-            self.base_top + self.top <= y as f32 &&
-            self.base_top + self.top + self.height >= y as f32
+        return self.base_left + self.left <= x as u32 &&
+            self.base_left + self.left + self.width >= x as u32 &&
+            self.base_top + self.top <= y as u32 &&
+            self.base_top + self.top + self.height >= y as u32
         ;
     }
 
@@ -247,10 +247,10 @@ impl ControlState {
     pub fn control_type(&self) -> &ControlType {
         &self.control_type
     }
-    pub fn base_left(&self) -> f32 {
+    pub fn base_left(&self) -> u32 {
         self.base_left
     }
-    pub fn base_top(&self) -> f32 {
+    pub fn base_top(&self) -> u32 {
         self.base_top
     }
     pub fn rect(&self) -> &Rect {
@@ -293,10 +293,10 @@ impl ControlState {
     pub fn set_control_type(&mut self, control_type: ControlType) {
         self.control_type = control_type;
     }
-    pub fn set_base_left(&mut self, base_left: f32) {
+    pub fn set_base_left(&mut self, base_left: u32) {
         self.base_left = base_left;
     }
-    pub fn set_base_top(&mut self, base_top: f32) {
+    pub fn set_base_top(&mut self, base_top: u32) {
         self.base_top = base_top;
     }
     pub fn set_rect(&mut self, rect: Rect) {

@@ -14,12 +14,12 @@ pub struct PixelTool {
 }
 
 impl PixelTool {
-    pub fn create(width: f32, height: f32) -> Self {
-        let screen_width_half = width / 2f32;
-        let screen_height_half = height / 2f32;
+    pub fn create(width: u32, height: u32) -> Self {
+        let screen_width_half = width as f32 / 2f32;
+        let screen_height_half = height as f32 / 2f32;
         Self {
-            screen_width: width,
-            screen_height: height,
+            screen_width: width as f32,
+            screen_height: height as f32,
             screen_width_half,
             screen_height_half,
             gl_pixel_width: 1f32 / screen_width_half,
@@ -28,11 +28,11 @@ impl PixelTool {
     }
 
     #[inline]
-    pub fn update(&mut self, width: f32, height: f32) {
-        self.screen_width = width;
-        self.screen_height = height;
-        self.screen_width_half = width / 2f32;
-        self.screen_height_half = height / 2f32;
+    pub fn update(&mut self, width: u32, height: u32) {
+        self.screen_width = width as f32;
+        self.screen_height = height as f32;
+        self.screen_width_half = width as f32 / 2f32;
+        self.screen_height_half = height as f32 / 2f32;
         self.gl_pixel_width = 1f32 / self.screen_width_half;
         self.gl_pixel_height = 1f32 / self.screen_height_half;
         println!("pixel -> {:?}", self);

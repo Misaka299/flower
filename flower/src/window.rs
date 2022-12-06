@@ -29,8 +29,8 @@ impl Window {
 
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
         let mut state = ControlState::create(name.clone(), false, control_type);
-        state.width = 1024 as f32;
-        state.height = 768 as f32;
+        state.width = 1024;
+        state.height = 768;
         state.focus = true;
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
@@ -38,10 +38,12 @@ impl Window {
         unsafe {
             let window = glutin::ContextBuilder::new()
                 .with_vsync(true)
+                .with_multisampling(16 )
                 .build_windowed(window_builder, el)
                 .unwrap()
                 .make_current()
                 .unwrap();
+            window.get_pixel_format();
             let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
             let shader_version = util::find_version(gl.get_parameter_string(glow::VERSION));
             //can i use this version?
@@ -84,11 +86,11 @@ impl Window {
 
 /// get set
 impl Window {
-    pub(crate) fn set_height(&mut self, height: f32) {
+    pub(crate) fn set_height(&mut self, height: u32) {
         self.height = height;
         self.gl.update_window_size(Point::new(self.width, self.height));
     }
-    pub(crate) fn set_width(&mut self, width: f32) {
+    pub(crate) fn set_width(&mut self, width: u32) {
         self.width = width;
         self.gl.update_window_size(Point::new(self.width, self.height));
     }

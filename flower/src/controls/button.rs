@@ -1,26 +1,31 @@
 use std::ops::{Deref, DerefMut};
-use glow::HasContext;
+
+use glow::{HasContext, LINE_LOOP, LINE_STRIP, LINES};
 use image::imageops::FilterType;
 
-
-use crate::control::{Control, ControlState, ControlType};
+use crate::control::{Control, ControlState, ControlType, InteractiveState};
 use crate::render::color::Color;
-use crate::render::fill::{Align, Fill, Image, ZoomType};
+use crate::render::fragment::FragData;
+use crate::render::image::{Align, Image, ZoomType};
 use crate::render::render::Renderer;
-use crate::render::shape::{Shape};
+use crate::render::shape::{DrawMode, Shape};
 
 pub struct Button {
     control_state: ControlState,
     text: String,
     on_click: Option<Box<dyn Fn()>>,
+    shape: Shape,
 }
 
 impl Button {
     pub fn from(name: String, text: String) -> Button {
+        let state = ControlState::create(name, false, ControlType::Control);
+        let shape = Shape::rect(state.left, state.top, state.width, state.height);
         Button {
-            control_state: ControlState::create(name, false, ControlType::Control),
+            control_state: state,
             text,
             on_click: None,
+            shape,
         }
     }
     pub fn on_click(&mut self, fn_on_click: Box<dyn Fn()>) -> &mut Self {
@@ -121,39 +126,44 @@ impl Control for Button {
 
 
             // glow::SRC1_ALPHA;
-            // gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-            // gl.enable(glow::BLEND);
+            gl.blend_func(glow::SRC_ALPHA, glow::SRC_COLOR);
+            gl.enable(glow::BLEND);
             // gl.enable(glow::LINE_SMOOTH);
             // gl.enable(glow::POLYGON_SMOOTH);
-            // gl.enable(glow::MULTISAMPLE)
+            gl.enable(glow::MULTISAMPLE);
         }
         println!("button[{}] draw over focus {}", self.id(), self.focus);
-        // let shape = Shape::line(self.left, self.top, self.left + self.width, self.top + self.height);
-        // match self.interactive_state {
-        //     InteractiveState::Ordinary => {
-        // gl.draw_shape(shape, glow::LINES, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
-        //     }
-        //     InteractiveState::Active => {
-        //         gl.fill(shape, None);
-        //     }
-        //     InteractiveState::Pressed => {
-        //         gl.line_loop(shape);
-        //     }
-        //     InteractiveState::Disable => {
-        //         gl.line_loop(shape);
-        //     }
-        // }
+        let shape = Shape::rect(self.left, self.top, self.left + self.width, self.top + self.height);
+        match self.interactive_state {
+            InteractiveState::Ordinary => {
+                gl.draw_shape(shape, DrawMode::FIll, vec![FragData::Color(Color::from_hex_str("#409eff").unwrap())]);
+            }
+            InteractiveState::Active => {
+                gl.draw_shape(shape, DrawMode::FIll, vec![FragData::Color(Color::from_hex_str("#66b1ff").unwrap())]);
+            }
+            InteractiveState::Pressed => {
+                gl.draw_shape(shape, DrawMode::FIll, vec![FragData::Color(Color::from_hex_str("#3a8ee6").unwrap())]);
+            }
+            InteractiveState::Disable => {
+                gl.draw_shape(shape, DrawMode::FIll, vec![FragData::Color(Color::from_hex_str("#909399").unwrap())]);
+            }
+        }
 
         // 加载并生成纹理
-        let mut image = image::open("flower/resource/test2.png").expect("Failed to load texture");
-        image = image.resize(40, 60, FilterType::Nearest);
-        // let shape = Shape::sector(200., 200., 100., 0., 50.0);
+        let mut image = image::open("flower/resource/test.jpg").expect("Failed to load texture");
+        // image = image.fliph();
+        // image = image.resize(40, 60, FilterType::Nearest);
+        // let shape = Shape::sector(200., 200., 100, 0., 500);
         // gl.draw_shape(shape, glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
         // //
-        // let shape = Shape::circle(400., 400., 100.);
+        // let shape = Shape::circle(400., 400., 100);
         // gl.draw_shape(shape, glow::QUADS, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
 
-        let shape = Shape::rect_radiu(50., 50., 100., 100., 0.);
+        // let shape = Shape::rect_radiu(50, 50, 100, 100, 0.);
+        let shape = Shape::rect_radiu(50, 50, 500, 500, 10);
+        // unsafe {gl.line_width(5.)}
+        // gl.draw_shape(shape, glow::LINE_LOOP, vec![FragData::Color(Color::rgba(0, 204, 255, 150))]);
+
 
         // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(image.clone(), Align::LeftBottom, ZoomType::Zoom, glow::NEAREST)));
         // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(
@@ -162,6 +172,74 @@ impl Control for Button {
         //     ZoomType::Tile(self.width, self.height),
         //     glow::NEAREST,
         // )));
-        gl.draw_shape(shape.clone(), glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00CCFF").unwrap()));
+        // gl.draw_shape(shape.clone(), glow::QUADS, Fragment::with(FragType::Color(Color::rgba(0,204,255,50))));
+
+
+        // gl.draw_shape(shape.clone(), DrawMode::FIll, vec![
+        //     FragData::Color(Color::rgba(0, 204, 255, 50)),
+        //     FragData::Image(Image::new(image.clone(), Align::Center, ZoomType::Zoom, glow::NEAREST)),
+        // ]);
+
+
+        // gl.draw_shape(Shape::Bezier { points: vec![(500, 500), (1000, 500), (1000, 1000), (500, 1000)], p: 250 },
+        //               glow::LINE_LOOP,
+        //               vec![FragData::Color(Color::rgba(0, 204, 255, 150))]);
+        gl.draw_shape(
+            Shape::Rect {
+                left: 500,
+                top: 500,
+                width: 500,
+                height: 500,
+                radiu_left_top: Some(300),
+                radiu_left_bottom: Some(30),
+                radiu_right_top: Some(50),
+                radiu_right_bottom: None,
+                line_width: None,
+            },
+            DrawMode::FIll,
+            vec![
+                FragData::Color(Color::rgba(0, 204, 255, 150)),
+                FragData::Image(Image::from_src(image.clone())),
+            ]);
+        // gl.draw_shape(Shape::Bezier { points: vec![(500, 500), (1000, 500), (1000, 1000)], p: 25, line_width: None },
+        //               DrawMode::FIll,
+        //               vec![
+        //                   FragData::Color(Color::rgba(0, 204, 255, 150)),
+        //                   FragData::Image(Image::from_src(image.clone())),
+        //               ]);
+
+        gl.draw_shape(Shape::line_with_width((44, 50), (44, 100), 1), DrawMode::LINE, vec![FragData::Color(Color::rgba(66, 255, 00, 150))]);
+        gl.draw_shape(Shape::line_with_width((50, 44), (100, 44), 1), DrawMode::LINE, vec![FragData::Color(Color::rgba(66, 255, 00, 150))]);
+
+        let x = 4 / 2;
+        // 竖线
+        gl.draw_shape(Shape::line_with_width((50, 50 - x), (50, 100 + x + 1), 5), DrawMode::LINE, vec![FragData::Color(Color::rgba(0, 204, 255, 150))]);
+        //
+        gl.draw_shape(Shape::line_with_width((100, 50 - x), (100, 100 + x + 1), 5), DrawMode::LINE, vec![FragData::Color(Color::rgba(0, 204, 255, 150))]);
+        // 横线
+        gl.draw_shape(Shape::line_with_width((50 - x - 1, 50), (100 + x, 50), 5), DrawMode::LINE, vec![FragData::Color(Color::rgba(0, 204, 0, 150))]);
+        gl.draw_shape(Shape::line_with_width((50 - x - 1, 100), (100 + x, 100), 5), DrawMode::LINE, vec![FragData::Color(Color::rgba(0, 204, 0, 150))]);
+        // unsafe { gl.clear_color(1.0, 1.0, 1.0, 1.0); }
+
+        // gl.draw_shape(Shape::line_with_width((200, 200), (200, 400.0), 5.), DrawMode::LINE, vec![FragData::Color(Color::rgba(255, 255, 80, 100))]);
+        // gl.draw_shape(Shape::line_with_width((200, 400.0), (400.0, 400.0), 5.), DrawMode::LINE, vec![FragData::Color(Color::rgba(255, 255, 80, 100))]);
+        // gl.draw_shape(Shape::line_with_width( (400.0, 400.0), (400.0, 200), 5.), DrawMode::LINE, vec![FragData::Color(Color::rgba(255, 255, 80, 100))]);
+        // gl.draw_shape(Shape::line_with_width((400.0, 200), (200, 200), 5.), DrawMode::LINE, vec![FragData::Color(Color::rgba(255, 255, 80, 100))]);
+
+        // gl.draw_shape(
+        //     Shape::Rect {
+        //         left: 200,
+        //         top: 200,
+        //         width: 200,
+        //         height: 200,
+        //         radiu_left_top: Some(50),
+        //         radiu_left_bottom: Some(50),
+        //         radiu_right_top: Some(50),
+        //         radiu_right_bottom: Some(50),
+        //         line_width: Some(5),
+        //     },
+        //     DrawMode::LINE,
+        //     vec![FragData::Color(Color::rgba(0, 204, 255, 100))]
+        // );
     }
 }

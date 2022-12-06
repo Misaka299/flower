@@ -5,5 +5,6 @@ pub mod draw;
 pub mod font;
 pub mod shape;
 pub mod pixel_tool;
-pub mod fill;
+pub mod fragment;
+pub mod image;
 

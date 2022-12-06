@@ -17,14 +17,23 @@ once_cell = "1.9.0"
 takeable-option = "0.4"
 # 少量数据时查询速度更快的map
 rustc-hash = { version = "1.0" }
+#日志接口
 log = "0.4"
+#窗口库
 glutin = "0.28.0"
+#gl api
 glow = { version = "0.11.2" }
 #nalgebra-glm = "0.12"
+# 图像解析
 image = "0.24.1"
 bytemuck = "1.8.0"
 #async-trait = "0.1"
 #cgmath = "0.18.0"
+#rust_decimal = "1.26.1"
+#rust_decimal_macros = "1.26.1"
+# 字体
+font-kit = "0.11.0"
 
+usvg = "0.14.1"
 [[example]]
 name = "test"

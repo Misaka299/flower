@@ -1,13 +1,13 @@
 #[derive(Debug, Copy, Clone)]
 pub struct Rect {
-    pub left: f32,
-    pub top: f32,
-    pub width: f32,
-    pub height: f32,
+    pub left: u32,
+    pub top: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Rect {
-    pub fn new(left: f32, top: f32, width: f32, height: f32) -> Rect {
+    pub fn new(left: u32, top: u32, width: u32, height: u32) -> Rect {
         Self {
             left,
             top,
@@ -18,12 +18,12 @@ impl Rect {
 }
 #[derive(Copy, Clone)]
 pub struct Point {
-    pub x: f32,
-    pub y: f32,
+    pub x: u32,
+    pub y: u32,
 }
 
 impl Point {
-    pub fn new(x: f32, y: f32) -> Self {
+    pub fn new(x: u32, y: u32) -> Self {
         Self {
             x,
             y,

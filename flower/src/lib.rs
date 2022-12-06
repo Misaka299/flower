@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use glutin::event::ElementState::Pressed;
 use glutin::event::VirtualKeyCode::Tab;
@@ -23,15 +24,15 @@ pub mod theme;
 // pub use context::*;
 // pub use windowed::*;
 pub use glutin::*;
-
+use log::debug;
 
 
 pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> = Lazy::new(|| Vec::new());
 
-pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
-pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
+pub static mut WINDOW_ID_MAP: Lazy<HashMap<WindowId, i32>> = Lazy::new(|| HashMap::default());
+pub static mut WINDOW_NAME_MAP: Lazy<HashMap<String, i32>> = Lazy::new(|| HashMap::default());
 
-pub struct Flower<T:Debug + 'static> {
+pub struct Flower<T: Debug + 'static> {
     el: EventLoop<T>,
     shader_load: bool,
 }
@@ -42,7 +43,7 @@ impl Flower<()> {
     }
 }
 
-impl<T:Debug> Flower<T> {
+impl<T: Debug> Flower<T> {
     pub fn with_user_event() -> Flower<T> {
         Self { el: EventLoop::<T>::with_user_event(), shader_load: false }
     }
@@ -55,8 +56,8 @@ impl<T:Debug> Flower<T> {
                 glutin::event::Event::WindowEvent { event, window_id } => match event {
                     WindowEvent::Resized(physical_size) => {
                         let window = get_window_by_window_id(&window_id);
-                        window.set_height(physical_size.height as f32);
-                        window.set_width(physical_size.width as f32);
+                        window.set_height(physical_size.height);
+                        window.set_width(physical_size.width);
                         window.context_wrapper.resize(physical_size);
                     }
                     WindowEvent::CloseRequested => {
@@ -64,26 +65,45 @@ impl<T:Debug> Flower<T> {
                     }
                     // 状态交互有问题，指向边界会变成激活状态。而且不进入时，激活状态不会被取消掉。
                     WindowEvent::CursorMoved { device_id, position, modifiers } => {
-                        // debug!("cursor moved");
                         let window = get_window_by_window_id(&window_id);
+                        debug!("cursor moved active_id {}",window.active_id);
+                        // 寻找响应的控件
                         if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
-                            // debug!("cursor moved - find result {:?}",option);
-                            let active_id = if option.1 == window.active_id { return; } else { window.active_id };
-                            // debug!("update active");
-                            if let Some(control) = window.search_control_by_id(&option.1) {
-                                // debug!("success search control id is {},set this control active is true",control.id());
-                                if let InteractiveState::Ordinary = control.interactive_state {
-                                    control.interactive_state = InteractiveState::Active;
-                                }
-                                window.active_id = control.id;
-                            }
+                            // 如果新的控件和旧的控件的id值一样，那么取消这次的处理
+                            let active_id = if option.1 == window.active_id {
+                                return;
+                            } else {
+                                window.active_id
+                            };
+
+                            // 取消激活上一个被激活的控件
                             if let Some(old_control) = window.search_control_by_id(&active_id) {
-                                // debug!("success search control id is {},set this control active is false",old_control.id());
                                 if let InteractiveState::Active = old_control.interactive_state {
                                     old_control.interactive_state = InteractiveState::Ordinary;
-                                    window.active_id = window.id;
                                 }
                             }
+                            // 激活新的控件
+                            if let Some(control) = window.search_control_by_id(&option.1) {
+                                if let InteractiveState::Ordinary = control.interactive_state {
+                                    control.interactive_state = InteractiveState::Active;
+                                    window.active_id = control.id;
+                                }
+                            }
+
+
+                            // let active_id = if option.1 == window.active_id {  window.draw(); return; } else { window.active_id };
+                            // if let Some(control) = window.search_control_by_id(&option.1) {
+                            //     if let InteractiveState::Ordinary = control.interactive_state {
+                            //         control.interactive_state = InteractiveState::Active;
+                            //         window.active_id = control.id;
+                            //     }
+                            // }
+                            // if let Some(old_control) = window.search_control_by_id(&active_id) {
+                            //     if let InteractiveState::Active = old_control.interactive_state {
+                            //         old_control.interactive_state = InteractiveState::Ordinary;
+                            //         window.active_id = window.id;
+                            //     }
+                            // }
                             // debug!("re draw");
                         }
                         window.draw();
@@ -113,7 +133,6 @@ impl<T:Debug> Flower<T> {
 
                 _ => (),
             }
-
             if unsafe { WINDOWS.is_empty() } {
                 *control_flow = ControlFlow::Exit
             } else {
