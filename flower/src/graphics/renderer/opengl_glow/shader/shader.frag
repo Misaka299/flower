@@ -9,11 +9,15 @@ uniform sampler2D ourTexture;
 out vec4 result;
 
 void main() {
-    if (1 == type || type > 1 && (1 & type) == 1) {
+    if ((1 & type) == 1) {
         result = color;
     }
-    if (2 == type || type > 2 && (2 & type) == 2) {
+    if ((2 & type) == 2) {
         result = texture(ourTexture, coord);
+    }
+    if ((3 & type) == 3) {
+        vec4 smapled = vec4(1.0, 1.0, 1.0, texture(ourTexture, coord).r);
+        result = vec4(255 / 255.0, 40 / 255.0, 04 / 255.0, 1.0) * smapled;
     }
 }
 

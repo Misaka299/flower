@@ -2,24 +2,30 @@ layout (location = 0) in vec2 vertex;
 layout (location = 1) in vec4 vertex_color;
 layout (location = 2) in vec2 vertex_coord;
 
+uniform int type;
+
 const float s = 0.4;
 
-const vec2 verts[4] = vec2[4](
-vec2(0.5f, 0.5),
-vec2(0.5f, -0.5f),
-vec2(-0.5f, -0.5f),
-vec2(-0.5f, 0.5f)
-);
+//const vec2 verts[4] = vec2[4](
+//vec2(0.5f, 0.5),
+//vec2(0.5f, -0.5f),
+//vec2(-0.5f, -0.5f),
+//vec2(-0.5f, 0.5f)
+//);
 
 out vec2 coord;
 out vec4 color;
-void main(){
-//    coord = coords[gl_VertexID];
-//    coord = coords[gl_VertexID];
-    color = vertex_color;
-    coord = vertex_coord.xy;
-    gl_Position = vec4(vertex.xy, 0.0, 1.0);
-//    gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
+void main() {
+    //    coord = coords[gl_VertexID];
+    //    coord = coords[gl_VertexID];
+//    type = 2;
+    if ((1 & type) == 1) {
+        color = vertex_color;
+    }
+
+    coord = vertex_coord;
+    gl_Position = vec4(vertex, 0.0, 1.0);
+    //    gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
 }
 
 ////layout (location = 0) in vec2 p;

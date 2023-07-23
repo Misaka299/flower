@@ -3,9 +3,12 @@ use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use log::debug;
+use rustc_hash::FxHashMap;
 
-use crate::rect::Rect;
-use crate::render::render::Renderer;
+use crate::event::{EventFn, EventMessage, EventType};
+use crate::event::EventType::*;
+use crate::graphics::rect::Rect;
+use crate::graphics::renderer::default::Renderer;
 
 // Why does setting zero make Windows invisible
 static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
@@ -19,20 +22,16 @@ pub enum ControlType {
     Tool,
 }
 
-#[derive(Clone, Debug)]
-pub enum Position {
-    // 绝对坐标，左边和顶部根据window窗口的对应位置进行计算
-    Absolute,
-    // 相对坐标，左边和顶部根据父级组件的对应位置进行计算
-    Relative,
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum InteractiveState {
-    Ordinary,
-    Active,
-    Pressed,
-    Disable,
+    // 普通
+    Ordinary = 1,
+    // 激活
+    Active = 2,
+    // 按下
+    Pressed = 3,
+    // 禁用
+    Disable = 4,
 }
 
 pub struct ControlState {
@@ -46,10 +45,10 @@ pub struct ControlState {
     /// 组件类型
     pub(crate) control_type: ControlType,
     /// 父级组件的位置
-    pub(crate) base_left: f32,
-    pub(crate) base_top: f32,
+    pub(crate) base_left: i32,
+    pub(crate) base_top: i32,
     /// 位置计算方式
-    pub(crate) position: Position,
+    // pub(crate) position: Position,
     pub(crate) rect: Rect,
     /// 子级组件
     pub(crate) child: Vec<Box<dyn Control<Target=ControlState>>>,
@@ -60,13 +59,14 @@ pub struct ControlState {
     // 焦点顺序，默认使用控件id
     pub(crate) focus_order: i32,
     // 是否焦点
-    pub(crate) focus: bool,
+    focus: bool,
     // 是否禁止捕获焦点
     pub(crate) non_focus: bool,
+    pub(crate) events: FxHashMap<EventType, Vec<EventFn>>,
 }
 
 impl ControlState {
-    pub fn create(name: String, non_focus: bool, control_type: ControlType) -> ControlState {
+    pub fn create(name: String, rect: Rect, non_focus: bool, control_type: ControlType) -> ControlState {
         let id = unsafe {
             match control_type {
                 ControlType::Control => { CONTROL_ID_TAG.fetch_add(1, Ordering::Release) }
@@ -74,40 +74,47 @@ impl ControlState {
             }
         };
         debug!("control_state Register id: {}",id);
+        let mut events = FxHashMap::default();
         Self {
             id,
             name,
             parent_id: 0,
             class: vec![],
             control_type,
-            base_left: 0 as f32,
-            base_top: 0 as f32,
-            position: Position::Relative,
-            rect: Rect::new(0., 0., 50., 20.),
+            base_left: 0,
+            base_top: 0,
+            // position: Position::Relative,
+            // rect: Rect::new(0, 0, 50, 20),
             visual: true,
             interactive_state: InteractiveState::Ordinary,
             focus_order: id,
             focus: false,
             non_focus,
             child: vec![],
+            rect,
+            events,
         }
     }
 
-    pub fn add_child(&mut self, mut child: impl Control<Target=ControlState>) {
-        let base_top = self.left;
-        let base_left = self.top;
-        child.set_base_top(base_top);
-        child.set_base_left(base_left);
-        self.child.push(Box::new(child));
+    pub fn set_focus(&mut self) {
+        self.non_focus = true;
+        self.fire_event(EventMessage::FocusGet);
+    }
+    pub fn cancel_focus(&mut self) {
+        self.non_focus = false;
+        self.fire_event(EventMessage::FocusLost);
     }
 
-    pub fn in_scope(&self, x: i32, y: i32) -> bool {
-        // debug!("x->{} y->{}",x,y);
-        return self.base_left + self.left <= x as f32 &&
-            self.base_left + self.left + self.width >= x as f32 &&
-            self.base_top + self.top <= y as f32 &&
-            self.base_top + self.top + self.height >= y as f32
-        ;
+    pub fn add_event(&mut self, efn: EventFn) {
+        self.events.entry(efn.into()).or_insert(vec![]).push(efn);
+    }
+
+    pub fn add_child(&mut self, mut child: impl Control<Target=ControlState>) {
+        // let base_top = self.left;
+        // let base_left = self.top;
+        // child.set_base_top(base_top);
+        // child.set_base_left(base_left);
+        self.child.push(Box::new(child));
     }
 
     pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
@@ -231,126 +238,35 @@ impl ControlState {
         }
     }
 
-    pub fn abs_rect(&self) -> Rect {
-        Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height)
-    }
-
-    pub fn id(&self) -> i32 {
-        self.id
-    }
-    pub fn parent_id(&self) -> i32 {
-        self.parent_id
-    }
-    pub fn class(&self) -> &Vec<String> {
-        &self.class
-    }
-    pub fn control_type(&self) -> &ControlType {
-        &self.control_type
-    }
-    pub fn base_left(&self) -> f32 {
-        self.base_left
-    }
-    pub fn base_top(&self) -> f32 {
-        self.base_top
-    }
-    pub fn rect(&self) -> &Rect {
-        &self.rect
-    }
-    pub fn child(&self) -> &Vec<Box<dyn Control<Target=ControlState>>> {
-        &self.child
-    }
-    pub fn disable(&self) -> bool {
-        match self.interactive_state {
-            InteractiveState::Disable => { true }
-            _ => { false }
+    pub fn fire_event(&mut self, em: EventMessage) {
+        if let Some(vec) = self.events.get(&em.into()) {
+            for f in vec {
+                match f {
+                    EventFn::LButtonDown(f) => if let EventMessage::LButtonDown(x, y, state) = em { f(x, y, state) },
+                    EventFn::LButtonClick(f) => if let EventMessage::LButtonClick(x, y, state) = em { f(x, y, state) },
+                    EventFn::LButtonUp(f) => if let EventMessage::LButtonUp(x, y, state) = em { f(x, y, state) },
+                    EventFn::RButtonDown(f) => if let EventMessage::RButtonDown(x, y, state) = em { f(x, y, state) },
+                    EventFn::RButtonClick(f) => if let EventMessage::RButtonClick(x, y, state) = em { f(x, y, state) },
+                    EventFn::RButtonUp(f) => if let EventMessage::RButtonUp(x, y, state) = em { f(x, y, state) },
+                    EventFn::MButtonDown(f) => if let EventMessage::MButtonDown(x, y, state) = em { f(x, y, state) },
+                    EventFn::MButtonClick(f) => if let EventMessage::MButtonClick(x, y, state) = em { f(x, y, state) },
+                    EventFn::MButtonUp(f) => if let EventMessage::MButtonUp(x, y, state) = em { f(x, y, state) },
+                    EventFn::OtherButtonDown(f) => if let EventMessage::OtherButtonDown(x, y, state) = em { f(x, y, state) },
+                    EventFn::OtherButtonClick(f) => if let EventMessage::OtherButtonClick(x, y, state) = em { f(x, y, state) },
+                    EventFn::OtherButtonUp(f) => if let EventMessage::OtherButtonUp(x, y, state) = em { f(x, y, state) },
+                    EventFn::MouseEnter(f) => f(),
+                    EventFn::MouseLeave(f) => f(),
+                    EventFn::MouseMove(f) => if let EventMessage::MouseMove(x, y, state) = em { f(x, y, state) },
+                    EventFn::FocusGet(f) => f(),
+                    EventFn::FocusLost(f) => f(),
+                    EventFn::ReSize(_) => {}
+                }
+            }
         }
-    }
-    pub fn visual(&self) -> bool {
-        self.visual
-    }
-    pub fn active(&self) -> bool {
-        match self.interactive_state {
-            InteractiveState::Active => { true }
-            _ => { false }
-        }
-    }
-    pub fn focus(&self) -> bool {
-        self.focus
-    }
-    pub fn non_focus(&self) -> bool {
-        self.non_focus
-    }
-
-    pub fn set_id(&mut self, id: i32) {
-        self.id = id;
-    }
-    pub fn set_parent_id(&mut self, parent_id: i32) {
-        self.parent_id = parent_id;
-    }
-    pub fn set_class(&mut self, class: Vec<String>) {
-        self.class = class;
-    }
-    pub fn set_control_type(&mut self, control_type: ControlType) {
-        self.control_type = control_type;
-    }
-    pub fn set_base_left(&mut self, base_left: f32) {
-        self.base_left = base_left;
-    }
-    pub fn set_base_top(&mut self, base_top: f32) {
-        self.base_top = base_top;
-    }
-    pub fn set_rect(&mut self, rect: Rect) {
-        self.rect = rect;
-    }
-    pub fn set_child(&mut self, child: Vec<Box<dyn Control<Target=ControlState>>>) {
-        self.child = child;
-    }
-    pub fn set_disable(&mut self, disable: bool) {
-        self.interactive_state = if disable {
-            InteractiveState::Ordinary
-        } else {
-            InteractiveState::Disable
-        }
-    }
-    pub fn set_visual(&mut self, visual: bool) {
-        self.visual = visual;
-    }
-    pub fn set_active(&mut self, active: bool) {
-        self.interactive_state = if active {
-            InteractiveState::Active
-        } else {
-            InteractiveState::Ordinary
-        }
-    }
-    pub fn set_focus(&mut self, focus: bool) {
-        self.focus = focus;
-    }
-    pub fn set_non_focus(&mut self, non_focus: bool) {
-        self.non_focus = non_focus;
-    }
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
     }
 }
 
-impl Deref for ControlState {
-    type Target = Rect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.rect
-    }
-}
-
-impl DerefMut for ControlState {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rect
-    }
-}
-
+///
 pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// 获取组件的类型
     fn get_control_type(&self) -> ControlType {
@@ -360,7 +276,6 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
     /// x,y 窗口发生事件时，鼠标在窗口内的相对坐标
     /// 层级数字越大，这个控件就越优先级高
     /// 层级相等，id大的控件优先级高
-    /// (i32, u8, i32) z-index,层级,组件id
     // 层级数字越大，这个控件就越优先级高
     // 层级相等，id大的控件优先级高
     fn find_event_control_id(&self, level: u8, x: i32, y: i32) -> Option<(u8, i32)> {
@@ -396,38 +311,33 @@ pub trait Control: Any + Deref<Target=ControlState> + DerefMut {
         Some(self_level)
     }
 
-    /// 绘制事件传播
-    fn draw(&mut self, gl: &mut Renderer) {
-        self.on_draw(gl);
+    // 控件范围检测，放在这里让子控件可以重写，支持异形控件
+    fn in_scope(&self, x: i32, y: i32) -> bool {
+        debug!("x->{} y->{}",x,y);
+        return self.base_left + self.rect.left as i32 <= x &&
+            self.base_left + self.rect.left as i32 + self.rect.width as i32 >= x &&
+            self.base_top + self.rect.top as i32 <= y &&
+            self.base_top + self.rect.top as i32 + self.rect.height as i32 >= y
+        ;
+    }
+
+    // 绘制事件传播
+    fn draw(&mut self, rdr: &mut Renderer) {
+        self.on_draw(rdr);
         let child = &mut self.child;
         for x in child {
-            x.draw(gl);
+            x.draw(rdr);
         }
     }
 
     // 组件自我绘制
-    fn on_draw(&mut self, gl: &mut Renderer);
+    fn on_draw(&mut self, rdr: &mut Renderer);
+
+    // 事件消息
+    fn on_event(&mut self, em: EventMessage) -> bool;
 }
 
-impl dyn Control {
-    /// Returns `true` if the boxed type is the same as `T`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::any::Any;
-    ///
-    /// fn is_string(s: &dyn Any) {
-    ///     if s.is::<String>() {
-    ///         println!("It's a string!");
-    ///     } else {
-    ///         println!("Not a string...");
-    ///     }
-    /// }
-    ///
-    /// is_string(&0);
-    /// is_string(&"cookie monster".to_string());
-    /// ```
+impl dyn Control<Target=ControlState> {
     #[inline]
     pub fn is<T: Any>(&self) -> bool {
         // Get `TypeId` of the type this function is instantiated with.
@@ -440,25 +350,6 @@ impl dyn Control {
         t == concrete
     }
 
-    /// Returns some reference to the boxed value if it is of type `T`, or
-    /// `None` if it isn't.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::any::Any;
-    ///
-    /// fn print_if_string(s: &dyn Any) {
-    ///     if let Some(string) = s.downcast_ref::<String>() {
-    ///         println!("It's a string({}): '{}'", string.len(), string);
-    ///     } else {
-    ///         println!("Not a string...");
-    ///     }
-    /// }
-    ///
-    /// print_if_string(&0);
-    /// print_if_string(&"cookie monster".to_string());
-    /// ```
     #[inline]
     pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
         if self.is::<T>() {
@@ -471,29 +362,6 @@ impl dyn Control {
         }
     }
 
-    /// Returns some mutable reference to the boxed value if it is of type `T`, or
-    /// `None` if it isn't.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::any::Any;
-    ///
-    /// fn modify_if_u32(s: &mut dyn Any) {
-    ///     if let Some(num) = s.downcast_mut::<u32>() {
-    ///         *num = 42;
-    ///     }
-    /// }
-    ///
-    /// let mut x = 10u32;
-    /// let mut s = "starlord".to_string();
-    ///
-    /// modify_if_u32(&mut x);
-    /// modify_if_u32(&mut s);
-    ///
-    /// assert_eq!(x, 42);
-    /// assert_eq!(&s, "starlord");
-    /// ```
     #[inline]
     pub fn downcast_mut<T: Any>(&mut self) -> Option<&mut T> {
         if self.is::<T>() {

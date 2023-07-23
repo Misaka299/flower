@@ -1,38 +1,76 @@
 use std::ops::{Deref, DerefMut};
-use glow::HasContext;
-use image::imageops::FilterType;
 
-
-use crate::control::{Control, ControlState, ControlType};
-use crate::render::color::Color;
-use crate::render::fill::{Align, Fill, Image, ZoomType};
-use crate::render::render::Renderer;
-use crate::render::shape::{Shape};
+use crate::control::{Control, ControlState, ControlType, InteractiveState};
+use crate::event::EventMessage;
+use crate::graphics::color::Color;
+use crate::graphics::font::Font;
+use crate::graphics::pen::Pen;
+use crate::graphics::rect::Rect;
+use crate::graphics::Render;
+use crate::graphics::renderer::default::Renderer;
 
 pub struct Button {
-    control_state: ControlState,
-    text: String,
-    on_click: Option<Box<dyn Fn()>>,
+    state: ControlState,
 }
 
 impl Button {
-    pub fn from(name: String, text: String) -> Button {
+    pub fn create() -> Button {
         Button {
-            control_state: ControlState::create(name, false, ControlType::Control),
-            text,
-            on_click: None,
+            state: ControlState::create("按钮".to_string(), Rect {
+                left: 100.0,
+                top: 100.0,
+                width: 200.0,
+                height: 200.0,
+            }, false, ControlType::Control)
         }
     }
-    pub fn on_click(&mut self, fn_on_click: Box<dyn Fn()>) -> &mut Self {
-        self.on_click = Some(fn_on_click);
-        self
+}
+
+impl Control for Button {
+    fn on_draw(&mut self, rdr: &mut Renderer) {
+        println!("draw button");
+
+        let color = match self.interactive_state {
+            InteractiveState::Ordinary => {
+                Color {
+                    r: 255,
+                    g: 40,
+                    b: 04,
+                    a: 255,
+                }
+            }
+            _ => {
+                Color {
+                    r: 0,
+                    g: 40,
+                    b: 04,
+                    a: 255,
+                }
+            }
+        };
+
+        let pen = &Pen {
+            width: 1.,
+            color,
+        };
+
+        let mut border_rect = self.rect;
+        border_rect.left = 0.;
+        border_rect.top = 0.;
+
+        rdr.store(&border_rect, pen);
+
+        let font = Font::new("Microsoft YaHei");
+        let mut rect = rdr.measure_text(&font, &"屠龙宝刀，点击就送");
+        let rect = rect.move_to_target_center(&self.rect);
+
+        rdr.store(&rect, pen);
+
+        rdr.draw_text_rect(&rect, &font, &color, &"屠龙宝刀，点击就送");
     }
-    pub fn set_text(&mut self, text: String) -> &mut Self {
-        self.text = text;
-        self
-    }
-    pub fn get_text(&self) -> String {
-        self.text.clone()
+
+    fn on_event(&mut self, em: EventMessage) -> bool {
+        todo!()
     }
 }
 
@@ -40,128 +78,12 @@ impl Deref for Button {
     type Target = ControlState;
 
     fn deref(&self) -> &Self::Target {
-        &self.control_state
+        &self.state
     }
 }
 
 impl DerefMut for Button {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.control_state
-    }
-}
-
-impl Control for Button {
-    fn on_draw(&mut self, gl: &mut Renderer) {
-        println!("button[{}] draw rect {:?}", self.id(), &self.rect);
-
-        unsafe {
-            // let verts_mat4x2 = mat2x4(
-            //     1.0f32, 1.0f32,
-            //     1.0f32, -1.0f32,
-            //     -1.0f32, -1.0f32,
-            //     -1.0f32, 1.0f32,
-            // );
-
-            // let a_position = gl.get_attrib_location(gl.shader.unwrap(), "verts");
-            //
-            // gl.enable_vertex_attrib_array(a_position.unwrap());
-            // gl.vertex_attrib_pointer_f32(a_position.unwrap(), 3, FLOAT, false, 0, 32 * 4);
-            // gl.disable_vertex_attrib_array(a_position.unwrap());
-
-
-            // gl.use_def_program();
-
-
-            // gl.Circle(ShapeCoord::from_rect());
-
-            // gl::UniformMatrix4fv(transformLoc, 1, gl::FALSE, transform.as_ptr());
-            // gl.rect(&Rect::new(self.base_left + self.left, self.base_top + self.top, self.width, self.height),Option::None);
-            // gl.uniform_4_f32(gl.get_uniform_location(gl.shader.unwrap(), "transform").as_ref(), matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]);
-            // gl.draw_arrays(glow::LINE_LOOP, 0, 4);
-            // let verts = gl.get_uniform_location(gl.shader.unwrap(), "verts");
-            //     gl.uniform_4(verts.as_ref(),);
-
-            // gl.vertex_attrib_1_f32()
-        }
-
-
-        unsafe {
-            // gl.clear_color(1.0, 1.0, 1.0, 1.0);
-            // gl.clear(glow::COLOR_BUFFER_BIT);
-
-
-            // let texture = gl.create_texture().unwrap();
-            // gl.bind_texture(TEXTURE_2D, Some(texture));
-            //
-            // // 为当前绑定的纹理对象设置环绕、过滤方式
-            // gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_WRAP_S, REPEAT as i32);
-            // gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_WRAP_T, REPEAT as i32);
-            // //
-            // gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MIN_FILTER, LINEAR as i32);
-            // gl.tex_parameter_i32(TEXTURE_2D, TEXTURE_MAG_FILTER, LINEAR as i32);
-            //
-            // // 加载并生成纹理
-            // let image = image::open("flower/resource/test2.png").expect("Failed to load texture");
-            //
-            // let data = image.as_bytes();
-            //
-            // gl.tex_image_2d(TEXTURE_2D, 0, RGBA as i32, image.width() as i32, image.height() as i32, 0, RGBA, UNSIGNED_BYTE, Some(data));
-            //
-            // gl.generate_mipmap(TEXTURE_2D);
-            //
-            //
-            // gl.bind_texture(TEXTURE_2D, Some(texture));
-            // gl.draw_arrays(glow::QUADS, 0, 4);
-            //
-            // let i = gl.get_error();
-            // println!("-----  {}", i);
-            // for x in gl.get_debug_message_log(i) {
-            //     println!("x---- {:?}", x);
-            // }
-
-
-            // glow::SRC1_ALPHA;
-            // gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-            // gl.enable(glow::BLEND);
-            // gl.enable(glow::LINE_SMOOTH);
-            // gl.enable(glow::POLYGON_SMOOTH);
-            // gl.enable(glow::MULTISAMPLE)
-        }
-        println!("button[{}] draw over focus {}", self.id(), self.focus);
-        // let shape = Shape::line(self.left, self.top, self.left + self.width, self.top + self.height);
-        // match self.interactive_state {
-        //     InteractiveState::Ordinary => {
-        // gl.draw_shape(shape, glow::LINES, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
-        //     }
-        //     InteractiveState::Active => {
-        //         gl.fill(shape, None);
-        //     }
-        //     InteractiveState::Pressed => {
-        //         gl.line_loop(shape);
-        //     }
-        //     InteractiveState::Disable => {
-        //         gl.line_loop(shape);
-        //     }
-        // }
-
-        // 加载并生成纹理
-        let mut image = image::open("flower/resource/test2.png").expect("Failed to load texture");
-        image = image.resize(40, 60, FilterType::Nearest);
-        // let shape = Shape::sector(200., 200., 100., 0., 50.0);
-        // gl.draw_shape(shape, glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
-        // //
-        // let shape = Shape::circle(400., 400., 100.);
-        // gl.draw_shape(shape, glow::QUADS, Fill::Color(Color::from_hex_str("00ccff").unwrap()));
-
-        let shape = Shape::rect_radiu(50., 50., 100., 100., 0.);
-
-        // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(image.clone(), Align::LeftBottom, ZoomType::Zoom, glow::NEAREST)));
-        // gl.draw_shape(shape.clone(), glow::QUADS, Fill::Image(Image::new(
-        //     image.clone(),
-        //     Align::LeftBottom,
-        //     ZoomType::Tile(self.width, self.height),
-        //     glow::NEAREST,
-        // )));
-        gl.draw_shape(shape.clone(), glow::LINE_LOOP, Fill::Color(Color::from_hex_str("00CCFF").unwrap()));
+        &mut self.state
     }
 }

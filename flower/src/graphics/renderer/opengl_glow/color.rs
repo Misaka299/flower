@@ -1,6 +1,4 @@
-use crate::render::fill::Fill;
-
-#[derive(Copy, Clone)]
+#[derive(Debug,Copy, Clone)]
 pub struct Color {
     r: u8,
     g: u8,

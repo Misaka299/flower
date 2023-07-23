@@ -1,100 +1,151 @@
-use std::fmt::Debug;
+use std::ops::Deref;
+
+pub use glutin::*;
+pub use image::*;
+use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
 use glutin::event::ElementState::Pressed;
 use glutin::event::VirtualKeyCode::Tab;
-use glutin::event::WindowEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
-use crate::control::{Control, ControlState, InteractiveState};
-use crate::window::Window;
+use crate::control::{Control, InteractiveState};
+use crate::event::EventMessage::*;
+use crate::window::{ButtonInfo, Window};
 
+pub mod graphics;
 pub mod window;
-pub mod event;
-pub(crate) mod util;
-pub mod controls;
 pub mod control;
-pub mod rect;
-pub mod render;
-pub mod theme;
+pub mod controls;
+pub mod event;
+pub mod background;
 
-// public library
-// pub use context::*;
-// pub use windowed::*;
-pub use glutin::*;
+// pub type TControl = Box<dyn Control<Target=ControlState>>;
 
+pub static mut WINDOWS: Lazy<FxHashMap<i32, Window>> = Lazy::new(|| FxHashMap::default());
+pub static mut WINDOWS_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
 
-
-pub static mut WINDOWS: Lazy<Vec<(i32, Box<dyn Control<Target=ControlState>>)>> = Lazy::new(|| Vec::new());
-
-pub static mut WINDOW_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
-pub static mut WINDOW_NAME_MAP: Lazy<FxHashMap<String, i32>> = Lazy::new(|| FxHashMap::default());
-
-pub struct Flower<T:Debug + 'static> {
-    el: EventLoop<T>,
-    shader_load: bool,
-}
-
-impl Flower<()> {
-    pub fn new() -> Flower<()> {
-        Self { el: EventLoop::<()>::new(), shader_load: false }
+pub fn remove_window_by_window_id(id: &WindowId) {
+    unsafe {
+        println!("remove window_id {:?}", id);
+        println!("remove find window_id {:?}", WINDOWS_ID_MAP.get(id));
+        if let Some(id) = WINDOWS_ID_MAP.remove(id) {
+            println!("remove id {:?}", id);
+            WINDOWS.remove(&id);
+        }
     }
 }
 
-impl<T:Debug> Flower<T> {
-    pub fn with_user_event() -> Flower<T> {
-        Self { el: EventLoop::<T>::with_user_event(), shader_load: false }
-    }
+#[macro_export]
+macro_rules! window_id {
+    ($id:expr) => {
+        unsafe {
+            if let Some(id) = WINDOWS_ID_MAP.get($id) {
+                return WINDOWS.get_mut($id);
+            }
+            None
+        }
+    };
+}
 
-    pub fn open(mut self) {
-        self.el.run(move |event, event_loop, control_flow| {
-            // println!("{:?}", event);
-            match event {
-                glutin::event::Event::LoopDestroyed => return,
-                glutin::event::Event::WindowEvent { event, window_id } => match event {
-                    WindowEvent::Resized(physical_size) => {
-                        let window = get_window_by_window_id(&window_id);
-                        window.set_height(physical_size.height as f32);
-                        window.set_width(physical_size.width as f32);
+pub fn get_window_by_window_id(id: &WindowId) -> Option<&mut Window> {
+    unsafe {
+        if let Some(id) = WINDOWS_ID_MAP.get(id) {
+            return WINDOWS.get_mut(id);
+        }
+        None
+    }
+}
+
+pub fn get_window_by_id(id: &i32) -> Option<&Window> {
+    unsafe {
+        WINDOWS.get(id)
+    }
+}
+
+pub fn run<T>(event_loop: EventLoop<T>) {
+    event_loop.run(|event, event_loop, control_flow| {
+        match event {
+            Event::LoopDestroyed => return,
+            Event::WindowEvent { event, window_id } => match event {
+                WindowEvent::Resized(physical_size) => {
+                    if let Some(window) = get_window_by_window_id(&window_id) {
+                        // todo update gl
+                        // window.px.update(physical_size.width, physical_size.height);
                         window.context_wrapper.resize(physical_size);
                     }
-                    WindowEvent::CloseRequested => {
-                        remove_window_by_window_id(&window_id);
+                }
+                WindowEvent::CloseRequested => {
+                    println!("CloseRequested {:?}", &window_id);
+                    remove_window_by_window_id(&window_id);
+                }
+                WindowEvent::CursorEntered { .. } => {
+                    if let Some(window) = get_window_by_window_id(&window_id) {
+                        window.fire_event(MouseEnter);
                     }
-                    // 状态交互有问题，指向边界会变成激活状态。而且不进入时，激活状态不会被取消掉。
-                    WindowEvent::CursorMoved { device_id, position, modifiers } => {
-                        // debug!("cursor moved");
-                        let window = get_window_by_window_id(&window_id);
+                }
+                WindowEvent::CursorLeft { .. } => {
+                    if let Some(window) = get_window_by_window_id(&window_id) {
+                        window.fire_event(MouseLeave);
+                    }
+                }
+                // 状态交互有问题，指向边界会变成激活状态。而且不进入时，激活状态不会被取消掉。
+                WindowEvent::CursorMoved { device_id, position, modifiers } => {
+
+                    // let now = minstant::Instant::now();
+                    if let Some(mut window) = get_window_by_window_id(&window_id) {
+                        // 记录鼠标位置
+                        window.mouse_location.x = position.x as i32;
+                        window.mouse_location.y = position.y as i32;
+                        println!("window fire");
+                        window.fire_event(MouseMove(position.x as i32, position.y as i32, modifiers));
+
+                        // 更新控件激活
+                        // 寻找响应的控件
                         if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
-                            // debug!("cursor moved - find result {:?}",option);
-                            let active_id = if option.1 == window.active_id { return; } else { window.active_id };
-                            // debug!("update active");
                             if let Some(control) = window.search_control_by_id(&option.1) {
-                                // debug!("success search control id is {},set this control active is true",control.id());
-                                if let InteractiveState::Ordinary = control.interactive_state {
-                                    control.interactive_state = InteractiveState::Active;
-                                }
-                                window.active_id = control.id;
+                                println!("control fire");
+                                control.fire_event(MouseMove(position.x as i32, position.y as i32, modifiers));
                             }
+                            // 如果新的控件和旧的控件的id值一样，那么取消这次的处理
+                            let active_id = if option.1 == window.active_id {
+                                return;
+                            } else {
+                                window.active_id
+                            };
+                            // 取消激活上一个被激活的控件
                             if let Some(old_control) = window.search_control_by_id(&active_id) {
-                                // debug!("success search control id is {},set this control active is false",old_control.id());
+                                old_control.fire_event(MouseLeave);
                                 if let InteractiveState::Active = old_control.interactive_state {
                                     old_control.interactive_state = InteractiveState::Ordinary;
-                                    window.active_id = window.id;
                                 }
+                            } else {
+                                window.fire_event(MouseLeave);
                             }
-                            // debug!("re draw");
+                            // 激活新的控件
+                            if let Some(control) = window.search_control_by_id(&option.1) {
+                                control.fire_event(MouseEnter);
+                                if let InteractiveState::Ordinary = control.interactive_state {
+                                    control.interactive_state = InteractiveState::Active;
+                                    window.active_id = control.id;
+                                }
+                            } else {
+                                // 如果没有控件响应，那就指定到窗口
+                                window.active_id = window.id;
+                                window.fire_event(MouseEnter);
+                            }
                         }
-                        window.draw();
+                        window.request_redraw();
                     }
-                    WindowEvent::Focused(f) => {}
-                    WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
-                        if input.state != Pressed || input.virtual_keycode != Some(Tab) {
-                            // debug!("return");
-                            return;
-                        }
-                        let mut window = get_window_by_window_id(&window_id);
+                }
+                WindowEvent::Focused(f) => {}
+                WindowEvent::KeyboardInput { device_id, input, is_synthetic } => {
+                    if input.state != Pressed || input.virtual_keycode != Some(Tab) {
+                        // debug!("return");
+                        return;
+                    }
+                    if let Some(mut window) = get_window_by_window_id(&window_id) {
                         if input.modifiers.shift() {
                             // debug!("keyboard input to change focus to previous");
                             window.move_focus_to_previous_control();
@@ -102,98 +153,90 @@ impl<T:Debug> Flower<T> {
                             // debug!("keyboard input to change focus to next");
                             window.move_focus_to_next_control();
                         }
-                        window.draw();
+                        window.request_redraw();
                     }
-                    _ => (),
-                },
-                glutin::event::Event::RedrawRequested(window_id) => {
-                    let window = get_window_by_window_id(&window_id);
+                }
+                WindowEvent::MouseInput { device_id, state, button, modifiers } => {
+                    if let Some(mut window) = get_window_by_window_id(&window_id) {
+                        // 寻找响应的控件
+                        if let Some(option) = window.find_event_control_id(0, window.mouse_location.x, window.mouse_location.y) {
+                            // 按键按下，标记响应控件
+                            match state {
+                                Pressed => {
+                                    window.button_info = ButtonInfo {
+                                        mouse_button: button,
+                                        press_id: option.1,
+                                    };
+                                    // let control = if let Some(control) = window.search_control_by_id(&option.1) {
+                                    //     //对控件发送单击事件
+                                    //     control
+                                    // } else {
+                                    //     // 没找到控件则事件在窗口上
+                                    //     window
+                                    // };
+                                    // control.event(match window.button_info.mouse_button {
+                                    //     MouseButton::Left => LButtonDown,
+                                    //     MouseButton::Right => RButtonDown,
+                                    //     MouseButton::Middle => MButtonDown,
+                                    //     MouseButton::Other(_) => OtherButtonDown,
+                                    // });
+                                }
+                                ElementState::Released => {
+                                    if window.button_info.press_id == option.1 {
+                                        let button_info = window.button_info;
+                                        let mouse_location = window.mouse_location;
+
+                                        if let Some(control) = window.search_control_by_id(&option.1) {
+                                            //对控件发送单击事件
+                                            control.fire_event(match button_info.mouse_button {
+                                                MouseButton::Left => LButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Right => RButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Middle => MButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Other(_) => OtherButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                            });
+
+                                            control.fire_event(match button_info.mouse_button {
+                                                MouseButton::Left => LButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Right => RButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Middle => MButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Other(_) => OtherButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                            });
+                                        } else {
+                                            // 没找到控件则事件在窗口上
+                                            window.fire_event(match button_info.mouse_button {
+                                                MouseButton::Left => LButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Right => RButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Middle => MButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Other(_) => OtherButtonClick(mouse_location.x, mouse_location.y, modifiers),
+                                            });
+
+                                            window.fire_event(match button_info.mouse_button {
+                                                MouseButton::Left => LButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Right => RButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Middle => MButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                                MouseButton::Other(_) => OtherButtonUp(mouse_location.x, mouse_location.y, modifiers),
+                                            });
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            },
+            Event::RedrawRequested(window_id) => {
+                if let Some(mut window) = get_window_by_window_id(&window_id) {
                     window.draw();
                 }
-
-                _ => (),
             }
 
-            if unsafe { WINDOWS.is_empty() } {
-                *control_flow = ControlFlow::Exit
-            } else {
-                *control_flow = ControlFlow::Wait
-            }
-        });
-    }
-    pub fn el(&self) -> &EventLoop<T> {
-        &self.el
-    }
-}
-
-pub fn get_id_by_window_id(window_id: &WindowId) -> i32 {
-    unsafe {
-        let id = WINDOW_ID_MAP.get(&window_id).unwrap();
-        (WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap() + 1) as i32
-    }
-}
-
-
-pub fn get_window_by_window_id(window_id: &WindowId) -> &mut Window {
-    unsafe {
-        let id = WINDOW_ID_MAP.get(window_id).unwrap();
-        get_window_by_id(id)
-    }
-}
-
-/// 加上 & 就可以编译了
-pub fn get_window_by_id(id: &i32) -> &mut Window {
-    unsafe {
-        let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&id)).unwrap();
-        WINDOWS[this_index].1.downcast_mut::<Window>().unwrap()
-    }
-}
-
-/// 加上 & 就可以编译了
-pub fn get_window_control_by_id(id: &i32) -> &mut Box<dyn Control<Target=ControlState>> {
-    get_window_control_by_id!(id)
-}
-
-#[macro_export]
-macro_rules! get_window_control_by_id {
-    ($id:expr) => {
-       unsafe {
-        let this_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp($id)).unwrap();
-        &mut WINDOWS[this_index].1
-       }
-    };
-}
-
-//加上 & 就可以编译了
-pub fn remove_window_by_id(id: &i32) -> String {
-    unsafe {
-        let win = get_window_by_id(id);
-        // 删除window_id map数据
-        WINDOW_ID_MAP.remove(&win.context_wrapper.window().id());
-        WINDOW_NAME_MAP.remove(win.name());
-        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap();
-        WINDOWS.remove(vec_index);
-        println!("Window with ID {:?} has been closed", id);
-        win.name().to_string()
-    }
-}
-
-pub fn remove_window_by_window_id(id: &WindowId) -> String {
-    unsafe {
-        let win = get_window_by_window_id(id);
-        WINDOW_NAME_MAP.remove(win.name());
-        let vec_index = WINDOWS.binary_search_by(|(sid, _)| sid.cmp(&win.id())).unwrap();
-        WINDOWS.remove(vec_index);
-        // 删除window_id map数据
-        WINDOW_ID_MAP.remove(&id);
-        println!("Window with ID {:?} has been closed", id);
-        win.name().to_string()
-    }
-}
-
-pub fn get_window_by_name(name: &String) -> &mut Window {
-    unsafe {
-        let id = WINDOW_NAME_MAP.get(name).unwrap();
-        get_window_by_id(id)
-    }
+            _ => (),
+        }
+        if unsafe { WINDOWS.is_empty() } {
+            *control_flow = ControlFlow::Exit
+        } else {
+            *control_flow = ControlFlow::Wait
+        }
+    });
 }
