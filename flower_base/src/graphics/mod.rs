@@ -1,12 +1,6 @@
-use std::fs::File;
-use std::ops::Add;
-use std::path::PathBuf;
-
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::window::Window;
-use image::DynamicImage;
 
-use crate::graphics::brush::Brush;
 use crate::graphics::color::Color;
 use crate::graphics::font::Font;
 use crate::graphics::pen::Pen;

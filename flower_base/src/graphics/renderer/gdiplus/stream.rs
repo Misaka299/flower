@@ -12,7 +12,7 @@ extern "C" {
 }
 
 pub struct Stream {
-    pub hglobal: HGLOBAL,
+    hglobal: HGLOBAL,
     pub stream: *mut IStream,
 }
 

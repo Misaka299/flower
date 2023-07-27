@@ -9,6 +9,17 @@ pub struct Rect {
 }
 
 impl Rect {
+    pub fn clone_wh(&self) -> Self {
+        Self{
+            left: 0.0,
+            top: 0.0,
+            width: self.width,
+            height: self.height,
+        }
+    }
+}
+
+impl Rect {
     pub fn move_to_target_center(&mut self, rect: &Rect) -> &mut Rect {
         // self.left = rect.left + rect.width / 2. - self.width / 2.;
         // self.top = rect.top + rect.height / 2. - self.height / 2.;
@@ -39,3 +50,14 @@ impl From<RectF> for Rect {
         }
     }
 }
+
+// impl<T> From<T> for Rect where T: ControlProperty {
+//     fn from(value: T) -> Self {
+//         Rect {
+//             left: value.left(),
+//             top: value.top(),
+//             width: value.width(),
+//             height: value.height(),
+//         }
+//     }
+// }

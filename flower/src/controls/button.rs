@@ -1,28 +1,23 @@
-use std::ops::{Deref, DerefMut};
+use flower_base::control::Control;
+use flower_base::event::EventMessage;
+use flower_base::graphics::color::Color;
+use flower_base::graphics::font::Font;
+use flower_base::graphics::pen::Pen;
+use flower_base::graphics::Render;
+use flower_base::graphics::renderer::default::Renderer;
+use flower_macro::control;
 
-use crate::control::{Control, ControlState, ControlType, InteractiveState};
-use crate::event::EventMessage;
-use crate::graphics::color::Color;
-use crate::graphics::font::Font;
-use crate::graphics::pen::Pen;
-use crate::graphics::rect::Rect;
-use crate::graphics::Render;
-use crate::graphics::renderer::default::Renderer;
-
-pub struct Button {
-    state: ControlState,
-}
+#[control]
+pub struct Button {}
 
 impl Button {
     pub fn create() -> Button {
-        Button {
-            state: ControlState::create("按钮".to_string(), Rect {
-                left: 100.0,
-                top: 100.0,
-                width: 200.0,
-                height: 200.0,
-            }, false, ControlType::Control)
-        }
+        Self::create_control("name", Rect {
+            left: 50.0,
+            top: 50.0,
+            width: 100.0,
+            height: 100.0,
+        })
     }
 }
 
@@ -71,19 +66,5 @@ impl Control for Button {
 
     fn on_event(&mut self, em: EventMessage) -> bool {
         todo!()
-    }
-}
-
-impl Deref for Button {
-    type Target = ControlState;
-
-    fn deref(&self) -> &Self::Target {
-        &self.state
-    }
-}
-
-impl DerefMut for Button {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.state
     }
 }

@@ -6,8 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+flower_base = { version = "0.1.0", path = "../flower_base" }
+
 # 语法
 syn = { version = "1.0", features = ["extra-traits"] }
 quote = "1.0"
+
+# 少量数据时查询速度更快的map
+rustc-hash = { version = "1.0" }
 [lib]
 proc-macro = true

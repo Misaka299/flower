@@ -1,14 +1,15 @@
+use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::iter::once;
 use std::os::windows::prelude::OsStrExt;
 use std::ptr::null_mut;
 
-use gdiplus_sys2::{GdipCreateBitmapFromScan0, GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreateFromHWND, GdipCreatePen1, GdipCreateStringFormat, GdipDeleteGraphics, GdipDeletePen, GdipDrawImageI, GdipDrawImageRectI, GdipDrawRectangleI, GdipDrawString, GdipGetImageGraphicsContext, GdipGetPenBrushFill, GdiplusStartup, GdiplusStartupInput, GdiplusStartupOutput, GdipMeasureString, GdipSetTextRenderingHint, GpFont, GpFontFamily, GpGraphics, GpImage, GpPen, HWND, RectF, TextRenderingHint_TextRenderingHintAntiAliasGridFit, Unit_UnitPixel};
+use gdiplus_sys2::{ARGB, Color_Blue, GdipCreateBitmapFromScan0, GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreateFromHWND, GdipCreatePen1, GdipCreateStringFormat, GdipDeleteGraphics, GdipDeletePen, GdipDrawImageI, GdipDrawImageRectI, GdipDrawRectangleI, GdipDrawString, GdipGetImageGraphicsContext, GdipGetPenBrushFill, GdiplusStartup, GdiplusStartupInput, GdiplusStartupOutput, GdipMeasureString, GdipSetTextRenderingHint, GpFont, GpFontFamily, GpGraphics, GpImage, GpPen, HWND, RectF, TextRenderingHint_TextRenderingHintAntiAliasGridFit, Unit_UnitPixel};
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::platform::windows::WindowExtWindows;
 use glutin::window::Window;
-use image::EncodableLayout;
 use rustc_hash::FxHashMap;
 use winapi::shared::ntdef::INT;
 
@@ -21,7 +22,6 @@ pub use crate::graphics::renderer::default::GdiPlusRenderer as Renderer;
 use crate::graphics::renderer::gdiplus::stream::{GdipLoadImageFromStream, Stream};
 
 pub mod stream;
-mod gdiplusflat;
 
 #[macro_export]
 macro_rules! wchar {
@@ -67,6 +67,7 @@ pub struct GdiPlusRenderer {
     canvas_id: Option<i32>,
     canvas_graphics: FxHashMap<i32, *mut GpGraphics>,
     canvas_image: FxHashMap<i32, *mut GpImage>,
+    hash_image: FxHashMap<u64, *mut GpImage>,
     pen: FxHashMap<Font, *mut GpPen>,
     font: FxHashMap<Font, *mut GpFont>,
     font_family: FxHashMap<Font, *mut GpFontFamily>,
@@ -79,6 +80,7 @@ impl Render for GdiPlusRenderer {
             canvas_id: None,
             canvas_graphics: Default::default(),
             canvas_image: Default::default(),
+            hash_image: Default::default(),
             pen: Default::default(),
             font: Default::default(),
             font_family: Default::default(),
@@ -167,15 +169,8 @@ impl Render for GdiPlusRenderer {
 
     fn draw_image(&mut self, image: Vec<u8>, rl: Rect) {
         unsafe {
-            let mut stream = Stream::create_from_u8(image.as_bytes());
-
-            let mut gp_image = null_mut();
-            let i = GdipLoadImageFromStream(stream.stream, &mut gp_image);
-            println!("GdipLoadImageFromStream - {}", i);
-
-
-            let i = GdipDrawImageRectI(self.window_graphics, gp_image, rl.left as INT, rl.top as INT, rl.width as INT, rl.height as INT);
-            println!("GdipDrawImageRectI - {}", i);
+            let gp_image = self.get_gp_image(image);
+            GdipDrawImageRectI(self.window_graphics, gp_image, rl.left as INT, rl.top as INT, rl.width as INT, rl.height as INT);
         }
     }
 
@@ -258,17 +253,31 @@ impl GdiPlusRenderer {
             Some(v) => { *v }
         }
     }
+
+    fn get_gp_image(&mut self, image: Vec<u8>) -> *mut GpImage {
+        let mut hasher = DefaultHasher::new();
+        image.hash(&mut hasher);
+        let hash = hasher.finish();
+        println!("hash {}", hash);
+        *self.hash_image.entry(hash).or_insert_with(|| unsafe {
+            println!("insert");
+            let mut stream = Stream::create_from_u8(image.as_slice());
+            let mut gp_image = null_mut();
+            GdipLoadImageFromStream(stream.stream, &mut gp_image);
+            gp_image
+        })
+    }
 }
 
 impl GdiPlusRenderer {
     pub fn test(&self) {
-        // unsafe {
-        //     let mut pen = null_mut();
-        //     GdipCreatePen1(Color_Blue as ARGB, 1.0, 2, &mut pen);
-        //
-        //     GdipDrawRectangleI(self.graphics, pen, 100, 100, 300, 200);
-        //
-        //     GdipDeletePen(pen);
-        // }
+        unsafe {
+            let mut pen = null_mut();
+            GdipCreatePen1(Color_Blue as ARGB, 1.0, 2, &mut pen);
+
+            GdipDrawRectangleI(self.get_graphics(), pen, 100, 100, 300, 200);
+
+            GdipDeletePen(pen);
+        }
     }
 }

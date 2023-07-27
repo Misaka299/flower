@@ -1,27 +1,26 @@
 use std::ops::Deref;
 
-pub use glutin::*;
-pub use image::*;
-use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
-use glutin::event::ElementState::Pressed;
-use glutin::event::VirtualKeyCode::Tab;
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowId;
-use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
+pub use image;
+pub use flower_base;
 
-use crate::control::{Control, InteractiveState};
-use crate::event::EventMessage::*;
+use once_cell::sync::Lazy;
+use flower_base::control::{Control, ControlBase};
+use flower_base::event::EventMessage::*;
+use flower_base::glutin::event::ElementState::Pressed;
+use flower_base::glutin::event::{ElementState, Event, MouseButton, WindowEvent};
+use flower_base::glutin::event::VirtualKeyCode::Tab;
+use flower_base::glutin::event_loop::{ControlFlow, EventLoop};
+use flower_base::glutin::window::WindowId;
+use flower_base::InteractiveState;
+use flower_base::rustc_hash::FxHashMap;
+
 use crate::window::{ButtonInfo, Window};
 
-pub mod graphics;
 pub mod window;
 pub mod control;
 pub mod controls;
-pub mod event;
-pub mod background;
 
-// pub type TControl = Box<dyn Control<Target=ControlState>>;
+// pub type TControl = Box<dyn Control>;
 
 pub static mut WINDOWS: Lazy<FxHashMap<i32, Window>> = Lazy::new(|| FxHashMap::default());
 pub static mut WINDOWS_ID_MAP: Lazy<FxHashMap<WindowId, i32>> = Lazy::new(|| FxHashMap::default());
@@ -103,7 +102,7 @@ pub fn run<T>(event_loop: EventLoop<T>) {
 
                         // 更新控件激活
                         // 寻找响应的控件
-                        if let Some(option) = window.find_event_control_id(0, position.x as i32, position.y as i32) {
+                        if let Some(option) = window.find_event_control_id(0, position.x as f32, position.y as f32) {
                             if let Some(control) = window.search_control_by_id(&option.1) {
                                 println!("control fire");
                                 control.fire_event(MouseMove(position.x as i32, position.y as i32, modifiers));
@@ -117,8 +116,8 @@ pub fn run<T>(event_loop: EventLoop<T>) {
                             // 取消激活上一个被激活的控件
                             if let Some(old_control) = window.search_control_by_id(&active_id) {
                                 old_control.fire_event(MouseLeave);
-                                if let InteractiveState::Active = old_control.interactive_state {
-                                    old_control.interactive_state = InteractiveState::Ordinary;
+                                if let InteractiveState::Active = old_control.interactive_state() {
+                                    old_control.set_interactive_state(InteractiveState::Ordinary);
                                 }
                             } else {
                                 window.fire_event(MouseLeave);
@@ -126,9 +125,9 @@ pub fn run<T>(event_loop: EventLoop<T>) {
                             // 激活新的控件
                             if let Some(control) = window.search_control_by_id(&option.1) {
                                 control.fire_event(MouseEnter);
-                                if let InteractiveState::Ordinary = control.interactive_state {
-                                    control.interactive_state = InteractiveState::Active;
-                                    window.active_id = control.id;
+                                if let InteractiveState::Ordinary = control.interactive_state() {
+                                    control.set_interactive_state(InteractiveState::Active);
+                                    window.active_id = control.id();
                                 }
                             } else {
                                 // 如果没有控件响应，那就指定到窗口
@@ -159,7 +158,7 @@ pub fn run<T>(event_loop: EventLoop<T>) {
                 WindowEvent::MouseInput { device_id, state, button, modifiers } => {
                     if let Some(mut window) = get_window_by_window_id(&window_id) {
                         // 寻找响应的控件
-                        if let Some(option) = window.find_event_control_id(0, window.mouse_location.x, window.mouse_location.y) {
+                        if let Some(option) = window.find_event_control_id(0, window.mouse_location.x as f32, window.mouse_location.y as f32) {
                             // 按键按下，标记响应控件
                             match state {
                                 Pressed => {

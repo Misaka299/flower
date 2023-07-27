@@ -1,19 +1,22 @@
-use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
-use glutin::{ContextWrapper, PossiblyCurrent};
-use glutin::event::MouseButton;
-use glutin::event_loop::EventLoop;
 use log::debug;
 use takeable_option::Takeable;
 
+use flower_base::{ControlType, glutin};
+use flower_base::event::EventMessage;
+use flower_base::glutin::{ContextWrapper, PossiblyCurrent};
+use flower_base::glutin::event::MouseButton;
+use flower_base::glutin::event_loop::EventLoop;
+use flower_base::graphics::Render;
+use flower_base::graphics::renderer::default::Renderer;
+use flower_macro::control;
+
 use crate::{WINDOWS, WINDOWS_ID_MAP};
-use crate::background::{Background, ImageSize};
-use crate::control::{Control, ControlState, ControlType};
-use crate::event::EventMessage;
-use crate::graphics::rect::Rect;
-use crate::graphics::Render;
-use crate::graphics::renderer::default::Renderer;
+use flower_base::background::{Background, ImageSize};
+use flower_base::control::Control;
+use flower_base::glutin::dpi::PhysicalPosition;
+use flower_base::glutin::error::NotSupportedError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ButtonInfo {
@@ -36,8 +39,8 @@ pub struct MouseLocation {
     pub y: i32,
 }
 
+#[control]
 pub struct Window {
-    pub control_state: ControlState,
     renderer: Renderer,
     pub context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
     pub focus_order_id: i32,
@@ -48,23 +51,11 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn print(&self) {
-        self.renderer.test();
-        println!("{:?}", &self.context_wrapper);
-    }
     pub fn create<T>(el: &EventLoop<T>, name: String, title: String) -> &mut Window {
         Self::create_with_control_type(ControlType::Control, el, name, title)
     }
+
     pub fn create_with_control_type<T>(control_type: ControlType, el: &EventLoop<T>, name: String, title: String) -> &mut Window {
-        let mut state = ControlState::create(name.clone(), Rect {
-            left: 0.0,
-            top: 0.0,
-            width: 1024.0,
-            height: 768.0,
-        }, false, control_type);
-        // state.width = 1024;
-        // state.height = 768;
-        state.set_focus();
         let window_builder = glutin::window::WindowBuilder::new()
             .with_title(&title)
             .with_inner_size(glutin::dpi::LogicalSize::new(1024, 768));
@@ -76,39 +67,36 @@ impl Window {
             .unwrap();
 
         let id = window.window().id();
-        let state_id = state.id;
 
         unsafe {
             let window = window.make_current().unwrap();
 
-            WINDOWS.insert(state_id, Self {
-                control_state: state,
-                renderer: Renderer::create(),
-                // px: PixelTool::create(1024, 768),
-                context_wrapper: Takeable::new(window.make_current().unwrap()),
-                focus_order_id: state_id,
-                active_id: state_id,
-                button_info: ButtonInfo::default(),
-                mouse_location: MouseLocation::default(),
-                background: Background::None,
-            });
-            WINDOWS_ID_MAP.insert(id, state_id);
-            WINDOWS.get_mut(&state_id).unwrap()
+            let mut rect = Rect {
+                left: 0.0,
+                top: 0.0,
+                width: window.window().outer_size().width as f32,
+                height: window.window().outer_size().height as f32,
+            };
+            if let Ok(pp) = window.window().outer_position() {
+                rect.left = pp.x as f32;
+                rect.top = pp.y as f32;
+            }
+
+            let window = Window::create_control("Window".to_string(),
+                                                rect,
+                                                Renderer::create(),
+                                                Takeable::new(window),
+                                                0,
+                                                0,
+                                                Default::default(),
+                                                Default::default(),
+                                                Background::None);
+            let control_id = window.id();
+            WINDOWS.insert(control_id,
+                           window);
+            WINDOWS_ID_MAP.insert(id, control_id);
+            WINDOWS.get_mut(&control_id).unwrap()
         }
-    }
-}
-
-impl Deref for Window {
-    type Target = ControlState;
-
-    fn deref(&self) -> &Self::Target {
-        &self.control_state
-    }
-}
-
-impl DerefMut for Window {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.control_state
     }
 }
 
@@ -119,7 +107,7 @@ impl Control for Window {
                 Background::Image(image, size) => {
                     match size {
                         ImageSize::Size(width, height) => {
-                            self.renderer.draw_image(image, Rect{
+                            self.renderer.draw_image(image, Rect {
                                 left: 0.0,
                                 top: 0.0,
                                 width: width as f32,
@@ -127,26 +115,13 @@ impl Control for Window {
                             });
                         }
                         ImageSize::Cover => {
-                            let rect = self.rect.clone();
+                            let rect = self.rect.clone_wh();
                             self.renderer.draw_image(image, rect);
                         }
                     }
                 }
-                Background::None => {}
+                _ => {}
             }
-
-            // if !self.context_wrapper.is_current() {
-            //     let wrapper = Takeable::take(&mut self.context_wrapper);
-            //     self.context_wrapper = Takeable::new(wrapper.make_current().expect("make current error!"));
-            // }
-            // let gl = &self.draw;
-            // let px = &self.px;
-            // gl.clear_color(0.1, 0.2, 0.3, 1.0);
-            // gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-            // // let rect = &self.abs_rect();
-            // // gl.viewport(rect.left as i32, self.height as i32 - rect.top as i32 - rect.height as i32, rect.width as i32, rect.height as i32);
-            // let size = self.context_wrapper.window().inner_size();
-            // gl.viewport(0, 0, size.width as i32, size.height as i32);
         }
     }
 
@@ -168,11 +143,11 @@ impl Window {
         self.renderer.begin_paint(&self.context_wrapper);
         self.renderer.test();
         unsafe { self.on_draw(&mut *null_mut() as &mut Renderer); }
-        for x in self.control_state.child.iter_mut() {
+        for x in self.child.iter_mut() {
             // x.canvas =
-            self.renderer.new_buffer_canvas(x.id, x.rect.width as i32 + 1, x.rect.height as i32 + 1);
+            self.renderer.new_buffer_canvas(x.id(), x.width() as i32 + 1, x.height() as i32 + 1);
             x.draw(&mut self.renderer);
-            self.renderer.refresh_canvas_to_window(None, x.rect.left as i32, x.rect.top as i32);
+            self.renderer.refresh_canvas_to_window(None, x.left() as i32, x.top() as i32);
         }
         // self.context_wrapper.swap_buffers().unwrap();
         self.renderer.end_paint(&self.context_wrapper);
@@ -182,9 +157,9 @@ impl Window {
     pub fn move_focus_to_specify_id_control(&mut self, id: i32) {
         let current_focus_order = self.focus_order_id;
         if let Some(control) = self.search_control_by_id(&id) {
-            debug!("success search next_control id is {},set this control focus is true",control.id);
+            debug!("success search next_control id is {},set this control focus is true",control.id());
             control.set_focus();
-            self.focus_order_id = control.focus_order;
+            self.focus_order_id = control.focus_order();
         }
         self.rest_old_control_focus(current_focus_order);
     }
@@ -193,9 +168,9 @@ impl Window {
         let current_focus_order = self.focus_order_id;
         if let Some(id) = self.find_previous_focus_control(current_focus_order) {
             let next_control = self.search_control_by_id(&id).unwrap();
-            debug!("success search next_control id is {},set this control focus is true",next_control.id);
+            debug!("success search next_control id is {},set this control focus is true",next_control.id());
             next_control.set_focus();
-            self.focus_order_id = next_control.focus_order;
+            self.focus_order_id = next_control.focus_order();
         }
         self.rest_old_control_focus(current_focus_order);
     }
@@ -204,9 +179,9 @@ impl Window {
         let current_focus_order = self.focus_order_id;
         if let Some(id) = self.find_next_focus_control(current_focus_order) {
             let next_control = self.search_control_by_id(&id).unwrap();
-            debug!("success search next_control id is {},set this control focus is true",next_control.id);
+            debug!("success search next_control id is {},set this control focus is true",next_control.id());
             next_control.set_focus();
-            self.focus_order_id = next_control.focus_order;
+            self.focus_order_id = next_control.focus_order();
         }
         self.rest_old_control_focus(current_focus_order);
     }
@@ -214,7 +189,7 @@ impl Window {
     pub fn rest_old_control_focus(&mut self, old_focus_order: i32) {
         debug!("keyboard input rest focus");
         if let Some(old_focus_control) = self.search_control_by_focus_order(old_focus_order) {
-            debug!("success search focus_control id is {},set this control focus is false",old_focus_control.id);
+            debug!("success search focus_control id is {},set this control focus is false",old_focus_control.id());
             old_focus_control.cancel_focus();
         }
     }
@@ -222,14 +197,14 @@ impl Window {
     ///
     /// Search Control includes Windows
     ///
-    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
+    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control>> {
         if &self.id == id {
             return None;
         }
-        self.control_state.search_control_by_id(id)
+        self.search_control_by_id(id)
     }
 
-    pub fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control<Target=ControlState>>> {
-        self.control_state.search_control_by_focus_order(order)
+    pub fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control>> {
+        self.search_control_by_focus_order(order)
     }
 }
