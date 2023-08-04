@@ -1,22 +1,19 @@
-use std::ptr::null_mut;
-
 use log::debug;
 use takeable_option::Takeable;
 
 use flower_base::{ControlType, glutin};
+use flower_base::background::{Background, ImageSize};
+use flower_base::control::Control;
 use flower_base::event::EventMessage;
-use flower_base::glutin::{ContextWrapper, PossiblyCurrent};
+use flower_base::glutin::ContextWrapper;
 use flower_base::glutin::event::MouseButton;
 use flower_base::glutin::event_loop::EventLoop;
+use flower_base::glutin::PossiblyCurrent;
 use flower_base::graphics::Render;
-use flower_base::graphics::renderer::default::Renderer;
+use flower_base::graphics::renderer::Renderer;
 use flower_macro::control;
 
 use crate::{WINDOWS, WINDOWS_ID_MAP};
-use flower_base::background::{Background, ImageSize};
-use flower_base::control::Control;
-use flower_base::glutin::dpi::PhysicalPosition;
-use flower_base::glutin::error::NotSupportedError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ButtonInfo {
@@ -41,7 +38,6 @@ pub struct MouseLocation {
 
 #[control]
 pub struct Window {
-    renderer: Renderer,
     pub context_wrapper: Takeable<ContextWrapper<PossiblyCurrent, glutin::window::Window>>,
     pub focus_order_id: i32,
     pub active_id: i32,
@@ -82,15 +78,16 @@ impl Window {
                 rect.top = pp.y as f32;
             }
 
-            let window = Window::create_control("Window".to_string(),
-                                                rect,
-                                                Renderer::create(),
-                                                Takeable::new(window),
-                                                0,
-                                                0,
-                                                Default::default(),
-                                                Default::default(),
-                                                Background::None);
+            let mut window = Window::create_control("Window".to_string(),
+                                                    rect,
+                                                    Takeable::new(window),
+                                                    0,
+                                                    0,
+                                                    Default::default(),
+                                                    Default::default(),
+                                                    Background::None);
+            // 激活id是自身,避免绘制闪烁
+            window.active_id = window.id;
             let control_id = window.id();
             WINDOWS.insert(control_id,
                            window);
@@ -98,16 +95,30 @@ impl Window {
             WINDOWS.get_mut(&control_id).unwrap()
         }
     }
+
+    pub fn resize(&mut self, x: f32, y: f32) {
+        self.rect.width = x;
+        self.rect.height = y;
+    }
 }
 
 impl Control for Window {
+    fn in_scope(&self, x: f32, y: f32) -> bool {
+        debug!("x->{} y->{}",x,y);
+        return 0. <= x &&
+            0. + self.width() >= x &&
+            0. <= y &&
+            0. + self.height() >= y
+        ;
+    }
+
     fn on_draw(&mut self, rdr: &mut Renderer) {
         unsafe {
             match self.background.clone() {
                 Background::Image(image, size) => {
                     match size {
                         ImageSize::Size(width, height) => {
-                            self.renderer.draw_image(image, Rect {
+                            rdr.draw_image(image, Rect {
                                 left: 0.0,
                                 top: 0.0,
                                 width: width as f32,
@@ -116,7 +127,7 @@ impl Control for Window {
                         }
                         ImageSize::Cover => {
                             let rect = self.rect.clone_wh();
-                            self.renderer.draw_image(image, rect);
+                            rdr.draw_image(image, rect);
                         }
                     }
                 }
@@ -126,7 +137,7 @@ impl Control for Window {
     }
 
     fn on_event(&mut self, em: EventMessage) -> bool {
-        todo!()
+        true
     }
 }
 
@@ -136,23 +147,23 @@ impl Window {
         self.context_wrapper.window().request_redraw();
     }
 
-    // 发起绘制
-    pub fn draw(&mut self) {
-        // debug!("draw all");
-        // let now = minstant::Instant::now();
-        self.renderer.begin_paint(&self.context_wrapper);
-        self.renderer.test();
-        unsafe { self.on_draw(&mut *null_mut() as &mut Renderer); }
-        for x in self.child.iter_mut() {
-            // x.canvas =
-            self.renderer.new_buffer_canvas(x.id(), x.width() as i32 + 1, x.height() as i32 + 1);
-            x.draw(&mut self.renderer);
-            self.renderer.refresh_canvas_to_window(None, x.left() as i32, x.top() as i32);
-        }
-        // self.context_wrapper.swap_buffers().unwrap();
-        self.renderer.end_paint(&self.context_wrapper);
-        // //println!("draw - {:?}", now.elapsed());
-    }
+    // // 发起绘制
+    // pub fn draw(&mut self) {
+    //     // debug!("draw all");
+    //     // let now = minstant::Instant::now();
+    //     self.renderer.begin_paint(&self.context_wrapper);
+    //     self.renderer.test();
+    //     unsafe { self.on_draw(&mut *null_mut() as &mut Renderer); }
+    //     for x in self.child.iter_mut() {
+    //         // x.canvas =
+    //         self.renderer.new_buffer_canvas(x.id(), x.width() as i32 + 1, x.height() as i32 + 1);
+    //         x.draw(&mut self.renderer);
+    //         self.renderer.refresh_canvas_to_window(None, x.left() as i32, x.top() as i32);
+    //     }
+    //     // self.context_wrapper.swap_buffers().unwrap();
+    //     self.renderer.end_paint(&self.context_wrapper);
+    //     // //println!("draw - {:?}", now.elapsed());
+    // }
 
     pub fn move_focus_to_specify_id_control(&mut self, id: i32) {
         let current_focus_order = self.focus_order_id;
@@ -192,19 +203,5 @@ impl Window {
             debug!("success search focus_control id is {},set this control focus is false",old_focus_control.id());
             old_focus_control.cancel_focus();
         }
-    }
-
-    ///
-    /// Search Control includes Windows
-    ///
-    pub fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control>> {
-        if &self.id == id {
-            return None;
-        }
-        self.search_control_by_id(id)
-    }
-
-    pub fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control>> {
-        self.search_control_by_focus_order(order)
     }
 }

@@ -44,7 +44,8 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 impl #generics #struct_name #generics {
                      pub fn create_control(name: impl AsRef<str>, rect: Rect, #(#field_names: #field_types,)*) -> Self {
                         Self {
-                            id: 0,
+                            id: flower_base::next_id(),
+                            window_id: 0,
                             name: name.as_ref().to_string(),
                             parent_id: 0,
                             control_type: flower_base::ControlType::Control,
@@ -52,12 +53,13 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                             base_top: 0.0,
                             rect,
                             child: vec![],
-                            visual: false,
+                            visual: true,
                             interactive_state: flower_base::InteractiveState::Ordinary,
                             focus_order: 0,
                             focus: false,
                             non_focus: false,
                             events: Default::default(),
+                            is_redraw: true,
                             #(#field_initializers)*
                         }
                     }
@@ -70,6 +72,9 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 use flower_base::control::ControlBase;
                 impl ControlBase for #generics #struct_name #generics {
                     fn id(&self) -> i32 { self.id }
+                    fn window_id(&self) -> i32 { self.window_id }
+                    fn set_window_id(&mut self, id: i32) { self.window_id = id; }
+                    fn set_parent_id(&mut self, id: i32) { self.parent_id = id; }
                     fn base_left(&self) -> f32 { self.base_left }
                     fn base_top(&self) -> f32 { self.base_top }
                     fn left(&self) -> f32 { self.rect.left }
@@ -80,21 +85,25 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     fn visual(&self) -> bool { self.visual }
                     fn interactive_state(&self) -> InteractiveState { self.interactive_state }
                     fn set_interactive_state(&mut self, new_interactive_state: InteractiveState) { self.interactive_state = new_interactive_state }
+                    fn is_redraw(&self) -> bool { self.is_redraw }
+                    fn redraw(&mut self) { self.is_redraw = true; }
 
                     fn set_focus(&mut self) {
                         self.non_focus = true;
-                        self.fire_event(EventMessage::FocusGet);
+                        self.fire_message(EventMessage::FocusGet);
                     }
                     fn cancel_focus(&mut self) {
                         self.non_focus = false;
-                        self.fire_event(EventMessage::FocusLost);
+                        self.fire_message(EventMessage::FocusLost);
                     }
 
                     fn add_event(&mut self, efn: EventFn) {
                         self.events.entry(efn.into()).or_insert(vec![]).push(efn);
                     }
 
-                    fn add_child(&mut self, child: Box<dyn Control>) {
+                    fn add_child(&mut self, mut child: Box<dyn Control>) {
+                        child.set_window_id(self.window_id);
+                        child.set_parent_id(self.id);
                         self.child.push(child);
                     }
 
@@ -209,12 +218,27 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         }
                     }
 
+                    fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control>> {
+                        match self.child.binary_search_by(|c| c.id().cmp(id)) {
+                            Ok(this_index) => {
+                                if self.child.len() - 1 < this_index {
+                                    return None;
+                                }
+                                return Some(&mut self.child[this_index]);
+                            }
+                            _ => { None }
+                        }
+                    }
+
                     /// 获取组件的类型
                     fn control_type(&self) -> flower_base::ControlType {
                         self.control_type.clone()
                     }
 
-                    fn fire_event(&mut self, em: EventMessage) {
+                    fn fire_message(&mut self, em: EventMessage) {
+                        if !self.on_event(em) {
+                            return;
+                        }
                         if let Some(vec) = self.events.get(&em.into()) {
                             for f in vec {
                                 match f {
@@ -256,54 +280,62 @@ pub fn control(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub(crate) id: i32
             }).unwrap());
             fields.named.insert(1, Field::parse_named.parse2(quote! {
+                /// 挂载的事件
+                pub(crate) window_id: i32
+            }).unwrap());
+            fields.named.insert(2, Field::parse_named.parse2(quote! {
                 /// 控件名称
                 pub(crate) name: String
             }).unwrap());
-            fields.named.insert(2, Field::parse_named.parse2(quote! {
+            fields.named.insert(3, Field::parse_named.parse2(quote! {
                 /// 父级控件id
                 pub(crate) parent_id: i32
             }).unwrap());
             // todo 组件类名
             // fields.named.insert(0, Field::parse_named.parse2(quote! { pub(crate) class: Vec<String>}).unwrap());
-            fields.named.insert(3, Field::parse_named.parse2(quote! {
+            fields.named.insert(4, Field::parse_named.parse2(quote! {
                 pub(crate) control_type: flower_base::ControlType
             }).unwrap());
-            fields.named.insert(4, Field::parse_named.parse2(quote! {
+            fields.named.insert(5, Field::parse_named.parse2(quote! {
                 pub(crate) base_left: f32
             }).unwrap());
-            fields.named.insert(5, Field::parse_named.parse2(quote! {
+            fields.named.insert(6, Field::parse_named.parse2(quote! {
                 pub(crate) base_top: f32
             }).unwrap());
-            fields.named.insert(6, Field::parse_named.parse2(quote! {
+            fields.named.insert(7, Field::parse_named.parse2(quote! {
                 pub(crate) rect: Rect
             }).unwrap());
-            fields.named.insert(7, Field::parse_named.parse2(quote! {
+            fields.named.insert(8, Field::parse_named.parse2(quote! {
                 /// 子级控件
                 pub(crate) child: Vec<Box<dyn Control>>
             }).unwrap());
-            fields.named.insert(8, Field::parse_named.parse2(quote! {
+            fields.named.insert(9, Field::parse_named.parse2(quote! {
                 /// 控件可视
                 pub(crate) visual: bool
             }).unwrap());
-            fields.named.insert(9, Field::parse_named.parse2(quote! {
+            fields.named.insert(10, Field::parse_named.parse2(quote! {
                 /// 交互状态
                 pub(crate) interactive_state: InteractiveState
             }).unwrap());
-            fields.named.insert(10, Field::parse_named.parse2(quote! {
+            fields.named.insert(11, Field::parse_named.parse2(quote! {
                 /// 焦点顺序，默认使用控件id
                 pub(crate) focus_order: i32
             }).unwrap());
-            fields.named.insert(11, Field::parse_named.parse2(quote! {
+            fields.named.insert(12, Field::parse_named.parse2(quote! {
                 /// 是否焦点
                 pub(crate) focus: bool
             }).unwrap());
-            fields.named.insert(12, Field::parse_named.parse2(quote! {
+            fields.named.insert(13, Field::parse_named.parse2(quote! {
                 /// 是否禁止捕获焦点
                 pub(crate) non_focus: bool
             }).unwrap());
-            fields.named.insert(13, Field::parse_named.parse2(quote! {
+            fields.named.insert(14, Field::parse_named.parse2(quote! {
                 /// 挂载的事件
                 pub(crate) events: crate::FxHashMap<flower_base::event::EventType, Vec<flower_base::event::EventFn>>
+            }).unwrap());
+            fields.named.insert(15, Field::parse_named.parse2(quote! {
+                /// 挂载的事件
+                pub(crate) is_redraw: bool
             }).unwrap());
         } else {
             panic!("control macro does not support structures of this field type");

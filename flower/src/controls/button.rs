@@ -4,43 +4,47 @@ use flower_base::graphics::color::Color;
 use flower_base::graphics::font::Font;
 use flower_base::graphics::pen::Pen;
 use flower_base::graphics::Render;
-use flower_base::graphics::renderer::default::Renderer;
+use flower_base::graphics::renderer::Renderer;
 use flower_macro::control;
 
 #[control]
-pub struct Button {}
+pub struct Button {
+    state: u8,
+}
 
 impl Button {
     pub fn create() -> Button {
         Self::create_control("name", Rect {
-            left: 50.0,
-            top: 50.0,
-            width: 100.0,
-            height: 100.0,
-        })
+            left: 100.0,
+            top: 100.0,
+            width: 200.0,
+            height: 200.0,
+        }, 0)
     }
 }
 
 impl Control for Button {
     fn on_draw(&mut self, rdr: &mut Renderer) {
-        println!("draw button");
+        // println!("draw button");
 
-        let color = match self.interactive_state {
-            InteractiveState::Ordinary => {
-                Color {
-                    r: 255,
-                    g: 40,
-                    b: 04,
-                    a: 255,
-                }
-            }
-            _ => {
-                Color {
-                    r: 0,
-                    g: 40,
-                    b: 04,
-                    a: 255,
-                }
+        let color = match self.state {
+            2 => Color {
+                r: 255,
+                g: 40,
+                b: 04,
+                a: 255,
+            },
+            1 => Color {
+                r: 200,
+                g: 40,
+                b: 04,
+                a: 255,
+            },
+            _ => Color {
+                r: 180,
+                g: 40,
+                b: 04,
+                a: 255,
             }
         };
 
@@ -61,10 +65,19 @@ impl Control for Button {
 
         rdr.store(&rect, pen);
 
-        rdr.draw_text_rect(&rect, &font, &color, &"屠龙宝刀，点击就送");
+        //rdr.draw_text_rect(&rect, &font, &color, &"屠龙宝刀，点击就送");
     }
 
     fn on_event(&mut self, em: EventMessage) -> bool {
-        todo!()
+        self.state = match em {
+            EventMessage::LButtonDown(_, _, _) => self.state + 1,
+            EventMessage::LButtonUp(_, _, _) => self.state - 1,
+            EventMessage::MouseEnter => self.state + 1,
+            EventMessage::MouseLeave => self.state - 1,
+            _ => self.state
+        };
+        // 调用真刷新。其他地方基本上都是假刷新，只有有变化，或者手动调用是真刷新
+        self.redraw();
+        true
     }
 }

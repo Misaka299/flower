@@ -1,10 +1,13 @@
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::window::Window;
+use once_cell::sync::Lazy;
+use rustc_hash::FxHashMap;
 
 use crate::graphics::color::Color;
 use crate::graphics::font::Font;
 use crate::graphics::pen::Pen;
 use crate::graphics::rect::Rect;
+use crate::graphics::renderer::Renderer;
 
 pub mod renderer;
 pub mod rect;
@@ -13,24 +16,29 @@ pub mod font;
 pub mod pen;
 pub mod color;
 
-///
-/// 画笔画刷 对象缓冲池，。end销毁。
-///
-///
-///
-///
+pub static mut RENDERERS: Lazy<FxHashMap<i32, Renderer>> = Lazy::new(|| FxHashMap::default());
+
+#[macro_export]
+macro_rules! rdr {
+    ($id:expr) => {
+        unsafe { crate::RENDERERS.get_mut($id) }
+    };
+}
+
 pub trait Render {
-    fn create() -> Self;
+    fn create(window_id: i32) -> Self;
 
+    fn get_window_id(&self) -> i32;
     /// 开始绘制
-    fn begin_paint(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>);
+    fn init(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>);
 
-    /// 结束绘制
-    fn end_paint(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>);
+    fn new_canvas_buffer(&mut self, id: i32, width: i32, height: i32);
 
-    fn new_buffer_canvas(&mut self, width: i32, height: i32, id: i32);
+    fn refresh_to_buffer(&mut self, source_id: i32, target_id: i32, x: i32, y: i32);
 
-    fn refresh_canvas_to_window(&mut self, id: Option<i32>, x: i32, y: i32);
+    fn refresh_canvas_to_window(&mut self);
+
+    fn delete_canvas_buffer(&mut self, id: i32);
 
     fn store(&mut self, rect: &Rect, pen: &Pen);
 
@@ -40,9 +48,9 @@ pub trait Render {
 
     fn draw_image(&mut self, image: Vec<u8>, rect_location: Rect);
 
-    fn measure_text(&self, font: &Font, str: &impl AsRef<str>) -> Rect;
+    fn measure_text(&mut self, font: &Font, str: &impl AsRef<str>) -> Rect;
 
-    fn draw_text_rect(&self, rect: &Rect, font: &Font, color: &Color, str: &impl AsRef<str>);
+    fn draw_text_rect(&mut self, rect: &Rect, font: &Font, color: &Color, str: &impl AsRef<str>);
 
     fn update_window_size();
 }

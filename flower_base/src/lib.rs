@@ -1,9 +1,23 @@
+use std::sync::atomic::{AtomicI32, Ordering};
+
 pub use glutin;
 pub use rustc_hash;
+
+
 pub mod event;
 pub mod graphics;
 pub mod control;
 pub mod background;
+
+static mut CONTROL_ID_TAG: AtomicI32 = AtomicI32::new(1);
+
+pub fn next_id() -> i32 {
+    unsafe {
+        let id = CONTROL_ID_TAG.fetch_add(1, Ordering::Release);
+        println!("分配新ID {}", id);
+        id
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum InteractiveState {

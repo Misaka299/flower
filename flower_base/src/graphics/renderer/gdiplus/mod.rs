@@ -6,7 +6,7 @@ use std::iter::once;
 use std::os::windows::prelude::OsStrExt;
 use std::ptr::null_mut;
 
-use gdiplus_sys2::{ARGB, Color_Blue, GdipCreateBitmapFromScan0, GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreateFromHWND, GdipCreatePen1, GdipCreateStringFormat, GdipDeleteGraphics, GdipDeletePen, GdipDrawImageI, GdipDrawImageRectI, GdipDrawRectangleI, GdipDrawString, GdipGetImageGraphicsContext, GdipGetPenBrushFill, GdiplusStartup, GdiplusStartupInput, GdiplusStartupOutput, GdipMeasureString, GdipSetTextRenderingHint, GpFont, GpFontFamily, GpGraphics, GpImage, GpPen, HWND, RectF, TextRenderingHint_TextRenderingHintAntiAliasGridFit, Unit_UnitPixel};
+use gdiplus_sys2::{GdipCreateBitmapFromScan0, GdipCreateFont, GdipCreateFontFamilyFromName, GdipCreateFromHWND, GdipCreatePen1, GdipCreateStringFormat, GdipDeleteCachedBitmap, GdipDeleteGraphics, GdipDeletePen, GdipDeleteStringFormat, GdipDrawImageI, GdipDrawImageRectI, GdipDrawRectangleI, GdipDrawString, GdipGetImageGraphicsContext, GdipGetPenBrushFill, GdipGraphicsClear, GdiplusStartup, GdiplusStartupInput, GdiplusStartupOutput, GdipMeasureString, GdipSetTextRenderingHint, GpCachedBitmap, GpFont, GpFontFamily, GpGraphics, GpImage, GpPen, HWND, RectF, TextRenderingHint_TextRenderingHintAntiAliasGridFit, Unit_UnitPixel};
 use glutin::{ContextWrapper, PossiblyCurrent};
 use glutin::platform::windows::WindowExtWindows;
 use glutin::window::Window;
@@ -18,7 +18,6 @@ use crate::graphics::color::Color;
 use crate::graphics::font::Font;
 use crate::graphics::pen::Pen;
 use crate::graphics::rect::Rect;
-pub use crate::graphics::renderer::default::GdiPlusRenderer as Renderer;
 use crate::graphics::renderer::gdiplus::stream::{GdipLoadImageFromStream, Stream};
 
 pub mod stream;
@@ -63,8 +62,10 @@ enum PixelFormat {
 }
 
 pub struct GdiPlusRenderer {
+    window_id: i32,
     window_graphics: *mut GpGraphics,
     canvas_id: Option<i32>,
+    canvas_size: FxHashMap<i32, (i32, i32)>,
     canvas_graphics: FxHashMap<i32, *mut GpGraphics>,
     canvas_image: FxHashMap<i32, *mut GpImage>,
     hash_image: FxHashMap<u64, *mut GpImage>,
@@ -74,20 +75,26 @@ pub struct GdiPlusRenderer {
 }
 
 impl Render for GdiPlusRenderer {
-    fn create() -> Self {
+    fn create(window_id: i32) -> Self {
         Self {
             window_graphics: null_mut(),
             canvas_id: None,
+            canvas_size: Default::default(),
             canvas_graphics: Default::default(),
             canvas_image: Default::default(),
             hash_image: Default::default(),
             pen: Default::default(),
             font: Default::default(),
             font_family: Default::default(),
+            window_id,
         }
     }
 
-    fn begin_paint(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>) {
+    fn get_window_id(&self) -> i32 {
+        self.window_id
+    }
+
+    fn init(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>) {
         unsafe {
             self.window_graphics = null_mut();
             let mut token = 0;
@@ -101,51 +108,65 @@ impl Render for GdiPlusRenderer {
         }
     }
 
-    fn end_paint(&mut self, window_context: &ContextWrapper<PossiblyCurrent, Window>) {
+    fn new_canvas_buffer(&mut self, id: i32, width: i32, height: i32) {
         unsafe {
-            GdipDeleteGraphics(self.window_graphics);
-        }
-    }
-
-    fn new_buffer_canvas(&mut self, id: i32, width: i32, height: i32) {
-        unsafe {
+            if let Some(wh) = self.canvas_size.get_mut(&id) {
+                if wh.0 == width && wh.1 == height {
+                    // only set current id
+                    self.canvas_id = Some(id);
+                    return;
+                } else {
+                    // update size
+                    *wh = (width, height);
+                }
+            }
+            // then create
             let mut bitmap = null_mut();
             GdipCreateBitmapFromScan0(width, height, 0, PixelFormat::Format32bppArgb as i32, null_mut(), &mut bitmap);
             let mut graphics = null_mut();
             GdipGetImageGraphicsContext(bitmap as *mut GpImage, &mut graphics);
 
+            self.canvas_size.insert(id, (width, height));
             self.canvas_graphics.insert(id, graphics);
             self.canvas_image.insert(id, bitmap as *mut GpImage);
             self.canvas_id = Some(id);
         }
     }
 
-    fn refresh_canvas_to_window(&mut self, id: Option<i32>, x: i32, y: i32) {
-        if let Some(id) = id {
-            if let Some(image) = self.canvas_image.get(&id) {
-                unsafe {
-                    let a = GdipDrawImageI(self.window_graphics, *image, x, y);
+    fn refresh_to_buffer(&mut self, source_id: i32, target_id: i32, x: i32, y: i32) {
+        unsafe {
+            if let Some(image) = self.canvas_image.get(&source_id) {
+                if let Some(graphics) = self.canvas_graphics.get(&target_id) {
+                    GdipDrawImageI(*graphics, *image, x, y);
                 }
             }
-            return;
         }
-        if let Some(id) = self.canvas_id {
-            if let Some(image) = self.canvas_image.get(&id) {
-                // unsafe {
-                //     let mut clsid_encoder = CLSID {
-                //         Data1: 0x557cf406,
-                //         Data2: 0x1a04,
-                //         Data3: 0x11d3,
-                //         Data4: [0x9a, 0x73, 0x00, 0x60, 0x97, 0xa0, 0x11, 0xa8],
-                //     }; // CLSID for BMP format
-                //     GdipSaveImageToFile(*image, wchar!("output.bmp"), &mut clsid_encoder, null_mut());
-                // }
-                unsafe {
-                    GdipDrawImageI(self.window_graphics, *image, x, y);
-                }
+    }
+
+    fn refresh_canvas_to_window(&mut self) {
+        if let Some(image) = self.canvas_image.get(&self.window_id) {
+            unsafe {
+                GdipDrawImageI(self.window_graphics, *image, 0, 0);
             }
-            return;
         }
+    }
+
+    fn delete_canvas_buffer(&mut self, id: i32){
+        println!("delete_canvas_buffer===================================================");
+        if let Some(graphics) = self.canvas_graphics.remove(&id){
+            unsafe { GdipDeleteGraphics(graphics); }
+        }
+        if let Some(graphics) = self.canvas_image.remove(&id){
+            unsafe { GdipDeleteCachedBitmap(graphics as *mut GpCachedBitmap); }
+        }
+        // for image in self.canvas_image.iter_mut() {
+        //     GdipDeleteCachedBitmap(*image.1 as *mut GpCachedBitmap);
+        // }
+        // self.canvas_image.clear();
+        // for graphics in self.canvas_graphics.iter_mut() {
+        //     GdipDeleteGraphics(*graphics.1);
+        // }
+        // self.canvas_graphics.clear();
     }
 
     fn store(&mut self, rect: &Rect, pen: &Pen) {
@@ -170,11 +191,11 @@ impl Render for GdiPlusRenderer {
     fn draw_image(&mut self, image: Vec<u8>, rl: Rect) {
         unsafe {
             let gp_image = self.get_gp_image(image);
-            GdipDrawImageRectI(self.window_graphics, gp_image, rl.left as INT, rl.top as INT, rl.width as INT, rl.height as INT);
+            GdipDrawImageRectI(self.get_graphics(), gp_image, rl.left as INT, rl.top as INT, rl.width as INT, rl.height as INT);
         }
     }
 
-    fn measure_text(&self, font: &Font, str: &impl AsRef<str>) -> Rect {
+    fn measure_text(&mut self, font: &Font, str: &impl AsRef<str>) -> Rect {
         unsafe {
             let font = self.get_font(font);
 
@@ -195,11 +216,12 @@ impl Render for GdiPlusRenderer {
                 Height: 0.0,
             };
             GdipMeasureString(self.get_graphics(), wchar!(str.as_ref()), -1, font, &mut layout_rect_f, format, &mut rect_f, null_mut(), null_mut());
+            GdipDeleteStringFormat(format);
             rect_f.into()
         }
     }
 
-    fn draw_text_rect(&self, rect: &Rect, font: &Font, color: &Color, str: &impl AsRef<str>) {
+    fn draw_text_rect(&mut self, rect: &Rect, font: &Font, color: &Color, str: &impl AsRef<str>) {
         unsafe {
             let mut format = null_mut();
             GdipCreateStringFormat(0, 0, &mut format);
@@ -228,12 +250,13 @@ impl GdiPlusRenderer {
         self.window_graphics
     }
 
-    fn get_font(&self, font: &Font) -> *const GpFont {
+    fn get_font(&mut self, font: &Font) -> *const GpFont {
         match self.font.get(font) {
             None => {
                 unsafe {
                     let mut ptr = null_mut();
-                    let i = GdipCreateFont(self.get_font_family(font), 12., 0, Unit_UnitPixel, &mut ptr);
+                    GdipCreateFont(self.get_font_family(font), 12., 0, Unit_UnitPixel, &mut ptr);
+                    self.font.insert(font.clone(), ptr);
                     ptr
                 }
             }
@@ -241,43 +264,23 @@ impl GdiPlusRenderer {
         }
     }
 
-    fn get_font_family(&self, font: &Font) -> *const GpFontFamily {
-        match self.font_family.get(font) {
-            None => {
-                unsafe {
-                    let mut ptr = null_mut();
-                    let i = GdipCreateFontFamilyFromName(wchar!(font.name.as_str()), null_mut(), &mut ptr);
-                    ptr
-                }
-            }
-            Some(v) => { *v }
-        }
+    fn get_font_family(&mut self, font: &Font) -> *const GpFontFamily {
+        *self.font_family.entry(font.clone()).or_insert_with(|| unsafe {
+            let mut ptr = null_mut();
+            GdipCreateFontFamilyFromName(wchar!(font.name.as_str()), null_mut(), &mut ptr);
+            ptr
+        })
     }
 
     fn get_gp_image(&mut self, image: Vec<u8>) -> *mut GpImage {
         let mut hasher = DefaultHasher::new();
         image.hash(&mut hasher);
         let hash = hasher.finish();
-        println!("hash {}", hash);
         *self.hash_image.entry(hash).or_insert_with(|| unsafe {
-            println!("insert");
             let mut stream = Stream::create_from_u8(image.as_slice());
             let mut gp_image = null_mut();
             GdipLoadImageFromStream(stream.stream, &mut gp_image);
             gp_image
         })
-    }
-}
-
-impl GdiPlusRenderer {
-    pub fn test(&self) {
-        unsafe {
-            let mut pen = null_mut();
-            GdipCreatePen1(Color_Blue as ARGB, 1.0, 2, &mut pen);
-
-            GdipDrawRectangleI(self.get_graphics(), pen, 100, 100, 300, 200);
-
-            GdipDeletePen(pen);
-        }
     }
 }

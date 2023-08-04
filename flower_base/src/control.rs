@@ -1,11 +1,17 @@
 use std::any::{Any, TypeId};
+
 use log::debug;
-use crate::event::{EventFn, EventMessage};
+
 use crate::{ControlType, InteractiveState};
-use crate::graphics::renderer::gdiplus::Renderer;
+use crate::event::{EventFn, EventMessage};
+use crate::graphics::{Render};
+use crate::graphics::renderer::Renderer;
 
 pub trait ControlBase {
     fn id(&self) -> i32;
+    fn window_id(&self) -> i32;
+    fn set_window_id(&mut self, id: i32);
+    fn set_parent_id(&mut self, id: i32);
     fn base_left(&self) -> f32;
     fn base_top(&self) -> f32;
     fn left(&self) -> f32;
@@ -27,10 +33,15 @@ pub trait ControlBase {
     fn find_previous_focus_control(&mut self, current_focus_order: i32) -> Option<i32>;
     fn find_next_focus_control(&mut self, current_focus_order: i32) -> Option<i32>;
     fn search_control_by_focus_order(&mut self, order: i32) -> Option<&mut Box<dyn Control>>;
+    fn search_control_by_id(&mut self, id: &i32) -> Option<&mut Box<dyn Control>>;
     /// 获取组件的类型
     fn control_type(&self) -> ControlType;
-    fn fire_event(&mut self, em: EventMessage);
+    fn fire_message(&mut self, em: EventMessage);
+    fn is_redraw(&self) -> bool;
+    fn redraw(&mut self);
 }
+
+pub trait ControlEvent {}
 
 ///
 pub trait Control: Any + ControlBase {
@@ -84,7 +95,11 @@ pub trait Control: Any + ControlBase {
 
     // 绘制事件传播
     fn draw(&mut self, rdr: &mut Renderer) {
-        self.on_draw(rdr);
+        if self.is_redraw() {
+            rdr.new_canvas_buffer(self.id(), self.width() as i32 + 1, self.height() as i32 + 1);
+            self.on_draw(rdr);
+        }
+        rdr.refresh_to_buffer(self.id(), rdr.get_window_id(), self.left() as i32, self.top() as i32);
         let child = self.child();
         for x in child {
             x.draw(rdr);
@@ -98,6 +113,8 @@ pub trait Control: Any + ControlBase {
     /// In this function, you can custom handle event message for this control.
     /// If `false` is returned, cancel the current event; otherwise, continue propagation.
     fn on_event(&mut self, em: EventMessage) -> bool;
+
+    fn on_drop(&mut self) {}
 }
 
 impl dyn Control {
