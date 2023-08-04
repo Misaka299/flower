@@ -10,10 +10,3 @@ Iterative updates will be mainly based on Chinese documents.
 If you would like to help with translation, you are very welcome.
 
 Good luck.
-
-### plan or idea:
-
-- function queue
-- layout queue
-- render queue
-- render setting
